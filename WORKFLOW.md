@@ -1,6 +1,7 @@
 # WORKFLOW.md
 
 ## Team rules
+
 - Always open PRs
 - One PR per issue
 - Max ~300 lines changed unless approved
@@ -10,6 +11,7 @@
 - No giant refactors without an issue
 
 ## Practical expectations
+
 - Keep PRs focused and reviewable
 - Link issue/context in PR description
 - Add/update docs when behavior changes
@@ -20,5 +22,28 @@
 - Stop after PR is opened (don’t “keep polishing”)
 
 ## Model usage guidance
+
 - Use a cheaper model for routing/summarizing
 - Use a stronger model only for actual implementation and debugging
+
+## AI agent development loop (OpenClaw)
+
+When implementing an issue:
+
+1. Create a branch: `issue-<id>-<slug>`
+2. Make the smallest change that satisfies acceptance criteria
+3. Update or add tests
+4. Run: lint, typecheck, tests
+5. Open PR referencing the issue and include:
+   - What changed
+   - How to test
+   - Any tradeoffs / follow-ups
+6. Stop
+
+### Hard guardrails
+
+- Never push to main
+- Never rotate secrets, tokens, or env vars without explicit approval
+- Never change DB schema without an issue and migration
+- Never add new integrations without stubbing + documented decision
+- Never auto-post content in MVP; approval required
