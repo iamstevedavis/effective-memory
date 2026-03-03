@@ -8,18 +8,22 @@
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "echo 'lint placeholder'",
     "typecheck": "tsc --noEmit",
-    "test": "echo 'test placeholder'"
+    "test": "echo 'test placeholder'",
+    "db:migrate": "npx ts-node scripts/migrate.ts",
+    "db:health": "npx ts-node scripts/db-health.ts"
   },
   "dependencies": {
     "next": "15.5.10",
     "react": "19.0.0",
-    "react-dom": "19.0.0"
+    "react-dom": "19.0.0",
+    "pg": "8.12.0"
   },
   "devDependencies": {
     "@types/node": "22.13.5",
     "@types/react": "19.0.10",
     "@types/react-dom": "19.0.4",
     "ts-node": "10.9.2",
-    "typescript": "5.8.2"
+    "typescript": "5.8.2",
+    "@types/pg": "8.11.6"
   }
 }
