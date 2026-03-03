@@ -5,9 +5,10 @@ export default function HomePage() {
     <main style={{ padding: 24, fontFamily: "sans-serif" }}>
       <h1>hello</h1>
       <p>effective-memory scaffold is up.</p>
-      <p>
-        <Link href="/import">Go to manual review CSV import</Link>
-      </p>
+      <ul>
+        <li><Link href="/import">Manual review CSV import</Link></li>
+        <li><Link href="/quotes">Quote selector v1</Link></li>
+      </ul>
     </main>
   );
 }

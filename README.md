@@ -36,3 +36,13 @@ docker compose up --build
 - Supported CSV columns:
   - required: `rating`, `text`, `reviewed_at` (ISO)
   - optional: `author_name`
+
+## Quote selector v1 (deterministic)
+
+- UI page: `/quotes`
+- Runs a deterministic selector for a business and persists top-N quote candidates in `draft_posts`.
+- Heuristics:
+  - prefer 4–5 star reviews
+  - prefer 30–200 character quotes
+  - reject profanity matches
+  - boost keyword matches (`food`, `service`, `clean`, `friendly`, etc.)
