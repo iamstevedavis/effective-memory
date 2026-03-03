@@ -8,6 +8,7 @@ export default function HomePage() {
       <ul>
         <li><Link href="/import">Manual review CSV import</Link></li>
         <li><Link href="/quotes">Quote selector v1</Link></li>
+        <li><Link href="/approval">Draft approval queue</Link></li>
       </ul>
     </main>
   );

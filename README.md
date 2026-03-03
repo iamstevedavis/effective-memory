@@ -49,3 +49,12 @@ docker compose up --build
 - Caption generation endpoint returns 3 AI variants (`friendly`, `premium`, `playful`) and lets you save selected caption to `draft_posts.caption_text`.
 - Branded image rendering endpoint generates PNGs in local storage (`public/generated`) and saves path to `draft_posts.image_path`.
 - Requires `OPENAI_API_KEY` in environment for caption generation.
+
+## Approval queue
+
+- UI page: `/approval`
+- Lists draft posts grouped by status (`draft`, `approved`)
+- Supports transitions:
+  - draft -> approved
+  - approved -> draft
+- Persists optional `audit_note` and updates `updated_at` on each transition.
