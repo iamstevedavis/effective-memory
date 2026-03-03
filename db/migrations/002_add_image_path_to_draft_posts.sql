@@ -1,0 +1,2 @@
+ALTER TABLE draft_posts
+ADD COLUMN IF NOT EXISTS image_path TEXT;
