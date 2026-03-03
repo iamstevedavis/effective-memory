@@ -11,10 +11,11 @@ export async function GET(req: NextRequest) {
     id: number;
     review_id: number | null;
     quote_text: string;
+    caption_text: string;
     status: string;
     created_at: string;
   }>(
-    `SELECT id, review_id, quote_text, status, created_at::text
+    `SELECT id, review_id, quote_text, caption_text, status, created_at::text
      FROM draft_posts
      WHERE business_id = $1
      ORDER BY created_at DESC, id DESC
