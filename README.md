@@ -28,3 +28,11 @@ docker compose up --build
 - Apply migrations: `npm run db:migrate`
 - Health check query: `npm run db:health`
 - Query helper: `lib/db.ts` (`query(...)` over `pg` pool)
+
+## Manual CSV import (MVP)
+
+- UI page: `/import`
+- Create/select a business, upload CSV, and import reviews into `reviews` with `source="manual"`.
+- Supported CSV columns:
+  - required: `rating`, `text`, `reviewed_at` (ISO)
+  - optional: `author_name`
