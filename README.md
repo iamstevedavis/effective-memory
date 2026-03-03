@@ -53,8 +53,17 @@ docker compose up --build
 ## Approval queue
 
 - UI page: `/approval`
-- Lists draft posts grouped by status (`draft`, `approved`)
+- Lists draft posts grouped by status (`draft`, `approved`, `scheduled`)
 - Supports transitions:
   - draft -> approved
   - approved -> draft
+- Supports setting `scheduled_for` datetime for approved drafts.
 - Persists optional `audit_note` and updates `updated_at` on each transition.
+
+## Scheduling (stub adapter)
+
+- Scheduler adapter interface: `lib/integrations/scheduler.ts`
+- Stub implementation logs structured scheduling payload and returns `scheduled`.
+- Worker command: `npm run worker:schedule`
+  - picks up rows with `status='approved'` and due `scheduled_for`
+  - marks rows `status='scheduled'` after adapter call
