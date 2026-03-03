@@ -8,6 +8,8 @@ Reviews → Social MVP scaffold.
 cp .env.example .env
 npm install
 docker compose up -d postgres redis
+npm run db:migrate
+npm run db:health
 npm run dev
 # in another terminal
 npx ts-node worker/index.ts
@@ -19,3 +21,10 @@ Or run everything in containers:
 cp .env.example .env
 docker compose up --build
 ```
+
+## Database
+
+- Migration tool: lightweight TypeScript runner (`scripts/migrate.ts`) executing SQL files from `db/migrations`.
+- Apply migrations: `npm run db:migrate`
+- Health check query: `npm run db:health`
+- Query helper: `lib/db.ts` (`query(...)` over `pg` pool)
