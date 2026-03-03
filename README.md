@@ -37,7 +37,7 @@ docker compose up --build
   - required: `rating`, `text`, `reviewed_at` (ISO)
   - optional: `author_name`
 
-## Quote selector v1 (deterministic) + caption generation
+## Quote selector v1 (deterministic) + caption generation + image rendering
 
 - UI page: `/quotes`
 - Runs a deterministic selector for a business and persists top-N quote candidates in `draft_posts`.
@@ -47,4 +47,5 @@ docker compose up --build
   - reject profanity matches
   - boost keyword matches (`food`, `service`, `clean`, `friendly`, etc.)
 - Caption generation endpoint returns 3 AI variants (`friendly`, `premium`, `playful`) and lets you save selected caption to `draft_posts.caption_text`.
+- Branded image rendering endpoint generates PNGs in local storage (`public/generated`) and saves path to `draft_posts.image_path`.
 - Requires `OPENAI_API_KEY` in environment for caption generation.
