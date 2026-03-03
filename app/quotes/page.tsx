@@ -8,6 +8,7 @@ type Draft = {
   review_id: number | null;
   quote_text: string;
   caption_text: string;
+  image_path: string | null;
   status: string;
 };
 type CaptionSet = { friendly: string; premium: string; playful: string };
@@ -20,6 +21,7 @@ export default function QuotesPage() {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [captionVariantsByDraft, setCaptionVariantsByDraft] = useState<Record<number, CaptionSet>>({});
   const [loadingDraftId, setLoadingDraftId] = useState<number | null>(null);
+  const [renderingDraftId, setRenderingDraftId] = useState<number | null>(null);
 
   async function loadBusinesses() {
     const res = await fetch("/api/businesses");
@@ -92,10 +94,30 @@ export default function QuotesPage() {
     await loadDrafts(businessId);
   }
 
+  async function renderImage(draftPostId: number) {
+    setRenderingDraftId(draftPostId);
+    try {
+      const res = await fetch("/api/images/render", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ draftPostId })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(`Render failed: ${data.error ?? "unknown error"}`);
+        return;
+      }
+      setMessage(`Rendered image for draft #${draftPostId}`);
+      await loadDrafts(businessId);
+    } finally {
+      setRenderingDraftId(null);
+    }
+  }
+
   return (
     <main style={{ fontFamily: "sans-serif", padding: 24, maxWidth: 960 }}>
       <h1>Quote selector + caption generation</h1>
-      <p>Deterministic quote ranking + AI caption variants (friendly/premium/playful).</p>
+      <p>Deterministic quote ranking + AI captions + branded image render.</p>
 
       <section style={{ marginBottom: 16 }}>
         <select value={businessId} onChange={(e) => setBusinessId(e.target.value)}>
@@ -133,7 +155,7 @@ export default function QuotesPage() {
           {drafts.map((d) => {
             const variants = captionVariantsByDraft[d.id];
             return (
-              <li key={d.id} style={{ marginBottom: 16 }}>
+              <li key={d.id} style={{ marginBottom: 20 }}>
                 <div>
                   #{d.id} [{d.status}] {d.quote_text}
                 </div>
@@ -143,6 +165,13 @@ export default function QuotesPage() {
                     disabled={loadingDraftId === d.id}
                   >
                     {loadingDraftId === d.id ? "Generating..." : "Generate captions"}
+                  </button>
+                  <button
+                    onClick={() => renderImage(d.id)}
+                    disabled={renderingDraftId === d.id}
+                    style={{ marginLeft: 8 }}
+                  >
+                    {renderingDraftId === d.id ? "Rendering..." : "Render image"}
                   </button>
                 </div>
 
@@ -166,6 +195,12 @@ export default function QuotesPage() {
                 {d.caption_text ? (
                   <div style={{ marginTop: 6 }}>
                     <em>Saved caption:</em> {d.caption_text}
+                  </div>
+                ) : null}
+
+                {d.image_path ? (
+                  <div style={{ marginTop: 8 }}>
+                    <img src={d.image_path} alt={`Draft ${d.id} graphic`} style={{ width: 240, border: "1px solid #ddd" }} />
                   </div>
                 ) : null}
               </li>
