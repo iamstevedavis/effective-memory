@@ -15,9 +15,10 @@ export async function GET(req: NextRequest) {
     image_path: string | null;
     status: string;
     audit_note: string | null;
+    scheduled_for: string | null;
     created_at: string;
   }>(
-    `SELECT id, review_id, quote_text, caption_text, image_path, status, audit_note, created_at::text
+    `SELECT id, review_id, quote_text, caption_text, image_path, status, audit_note, scheduled_for::text, created_at::text
      FROM draft_posts
      WHERE business_id = $1
      ORDER BY created_at DESC, id DESC
