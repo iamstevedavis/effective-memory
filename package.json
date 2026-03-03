@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "echo 'test placeholder'",
     "db:migrate": "npx ts-node scripts/migrate.ts",
-    "db:health": "npx ts-node scripts/db-health.ts"
+    "db:health": "npx ts-node scripts/db-health.ts",
+    "worker:schedule": "npx ts-node scripts/schedule-worker.ts"
   },
   "dependencies": {
     "next": "15.5.10",
