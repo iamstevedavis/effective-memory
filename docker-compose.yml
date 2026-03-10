@@ -1,4 +1,17 @@
 services:
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+    command: ["npm", "run", "db:migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   web:
     build:
       context: .
@@ -8,7 +21,11 @@ services:
       - NODE_ENV=development
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
-    depends_on: [postgres, redis]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
 
   worker:
     build:
@@ -18,7 +35,11 @@ services:
       - NODE_ENV=development
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
-    depends_on: [postgres, redis]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
 
   postgres:
     image: postgres:16-alpine
@@ -28,6 +49,11 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
     ports: ["5432:5432"]
     volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   redis:
     image: redis:7-alpine
