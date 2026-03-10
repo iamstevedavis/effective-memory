@@ -22,6 +22,8 @@ cp .env.example .env
 docker compose up --build
 ```
 
+`docker compose up` runs a one-shot `migrate` service first, then starts `web` and `worker` after migrations complete.
+
 ## Database
 
 - Migration tool: lightweight TypeScript runner (`scripts/migrate.ts`) executing SQL files from `db/migrations`.
