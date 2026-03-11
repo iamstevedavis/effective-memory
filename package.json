@@ -8,7 +8,7 @@
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "echo 'lint placeholder'",
     "typecheck": "tsc --noEmit",
-    "test": "echo 'test placeholder'",
+    "test": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/test-draft-pipeline.ts",
     "db:migrate": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/migrate.ts",
     "db:health": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/db-health.ts",
     "worker:schedule": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/schedule-worker.ts"

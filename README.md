@@ -62,6 +62,16 @@ docker compose up --build
 - Supports setting `scheduled_for` datetime for approved drafts.
 - Persists optional `audit_note` and updates `updated_at` on each transition.
 
+## Draft generation worker
+
+- Worker entrypoint: `worker/index.ts`
+- Automatically runs quote selection -> caption generation -> image render for each business on a timer.
+- New draft candidates are created in `draft_posts` with:
+  - `quote_text` from selector
+  - `caption_text` from caption generator (friendly variant)
+  - `image_path` from renderer output
+- Duplicates are avoided by skipping reviews already linked to an existing draft.
+
 ## Scheduling (stub adapter)
 
 - Scheduler adapter interface: `lib/integrations/scheduler.ts`
