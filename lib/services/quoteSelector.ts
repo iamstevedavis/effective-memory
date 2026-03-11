@@ -35,10 +35,15 @@ function scoreReview(r: ReviewRow): number {
 
 export async function selectQuoteCandidates(businessId: number, limit = 5) {
   const reviews = await query<ReviewRow>(
-    `SELECT id, business_id, rating, text
-     FROM reviews
-     WHERE business_id = $1
-     ORDER BY reviewed_at DESC, id DESC
+    `SELECT r.id, r.business_id, r.rating, r.text
+     FROM reviews r
+     WHERE r.business_id = $1
+       AND NOT EXISTS (
+         SELECT 1
+         FROM draft_posts d
+         WHERE d.review_id = r.id
+       )
+     ORDER BY r.reviewed_at DESC, r.id DESC
      LIMIT 300`,
     [businessId]
   );
