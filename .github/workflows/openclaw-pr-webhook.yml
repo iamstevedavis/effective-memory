@@ -20,12 +20,13 @@ jobs:
           REPO: ${{ github.repository }}
           EVENT_NAME: ${{ github.event_name }}
           ACTION: ${{ github.event.action }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.review.pull_request_url || '' }}
-          PR_TITLE: ${{ github.event.pull_request.title || '' }}
-          PR_URL: ${{ github.event.pull_request.html_url || github.event.review.html_url || '' }}
           SENDER: ${{ github.actor }}
         run: |
           set -euo pipefail
+
+          PR_NUMBER=$(jq -r '.pull_request.number // .review.pull_request_url // ""' "$GITHUB_EVENT_PATH")
+          PR_TITLE=$(jq -r '.pull_request.title // ""' "$GITHUB_EVENT_PATH")
+          PR_URL=$(jq -r '.pull_request.html_url // .review.html_url // ""' "$GITHUB_EVENT_PATH")
 
           MESSAGE=$(cat <<MSG
 GitHub webhook event received.
