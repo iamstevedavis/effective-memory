@@ -15,6 +15,53 @@ type Draft = {
   created_at: string;
 };
 
+function extractHashtags(caption: string) {
+  return caption.match(/#[A-Za-z0-9_]+/g) ?? [];
+}
+
+function formatScheduledTime(value?: string | null) {
+  if (!value) return "(none)";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString();
+}
+
+function PostPreview({ draft, scheduledPreview }: { draft: Draft; scheduledPreview?: string | null }) {
+  const hashtags = extractHashtags(draft.caption_text);
+  const scheduledTime = scheduledPreview || draft.scheduled_for;
+
+  return (
+    <div style={{ marginTop: 8, padding: 10, border: "1px solid #ddd", borderRadius: 6, background: "#fafafa" }}>
+      <div style={{ marginBottom: 8 }}>
+        <strong>Image:</strong>
+        {draft.image_path ? (
+          <div style={{ marginTop: 6 }}>
+            <img
+              src={draft.image_path}
+              alt={`Draft ${draft.id} preview`}
+              style={{ width: 220, border: "1px solid #ddd", borderRadius: 4 }}
+            />
+          </div>
+        ) : (
+          <div style={{ marginTop: 4 }}>(none)</div>
+        )}
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <strong>Caption:</strong> {draft.caption_text || "(none)"}
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <strong>Hashtags:</strong> {hashtags.length ? hashtags.join(" ") : "(none)"}
+      </div>
+
+      <div>
+        <strong>Scheduled time:</strong> {formatScheduledTime(scheduledTime)}
+      </div>
+    </div>
+  );
+}
+
 export default function ApprovalPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [businessId, setBusinessId] = useState("");
@@ -122,7 +169,9 @@ export default function ApprovalPage() {
           <ul>
             {byStatus.draft.map((d) => (
               <li key={d.id} style={{ marginBottom: 14 }}>
-                <div>#{d.id} {d.quote_text}</div>
+                <div>
+                  #{d.id} {d.quote_text}
+                </div>
                 <input
                   placeholder="audit note (optional)"
                   value={notes[d.id] ?? ""}
@@ -134,6 +183,7 @@ export default function ApprovalPage() {
                     Approve
                   </button>
                 </div>
+                <PostPreview draft={d} />
               </li>
             ))}
           </ul>
@@ -144,7 +194,9 @@ export default function ApprovalPage() {
           <ul>
             {byStatus.approved.map((d) => (
               <li key={d.id} style={{ marginBottom: 14 }}>
-                <div>#{d.id} {d.quote_text}</div>
+                <div>
+                  #{d.id} {d.quote_text}
+                </div>
                 <input
                   type="datetime-local"
                   value={scheduledForByDraft[d.id] ?? ""}
@@ -161,6 +213,7 @@ export default function ApprovalPage() {
                     Send back to draft
                   </button>
                 </div>
+                <PostPreview draft={d} scheduledPreview={scheduledForByDraft[d.id]} />
               </li>
             ))}
           </ul>
@@ -171,10 +224,10 @@ export default function ApprovalPage() {
           <ul>
             {byStatus.scheduled.map((d) => (
               <li key={d.id} style={{ marginBottom: 14 }}>
-                <div>#{d.id} {d.quote_text}</div>
                 <div>
-                  <small>scheduled_for: {d.scheduled_for ?? "(none)"}</small>
+                  #{d.id} {d.quote_text}
                 </div>
+                <PostPreview draft={d} />
               </li>
             ))}
           </ul>
