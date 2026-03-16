@@ -1,3 +1,5 @@
+import { BRAND_TONES, type BrandTone } from "../branding";
+
 type CaptionStyles = {
   friendly: string;
   premium: string;
@@ -28,19 +30,21 @@ function sanitizeCaption(text: string): string {
 export async function generateCaptionVariants(params: {
   businessName: string;
   quoteText: string;
-  brandTone?: "friendly" | "premium" | "playful";
+  brandTone?: BrandTone;
 }): Promise<CaptionStyles> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error("OPENAI_API_KEY is not set");
   }
 
-  const preferredTone = params.brandTone ?? "friendly";
+  const requestedTone = params.brandTone && BRAND_TONES.includes(params.brandTone)
+    ? params.brandTone
+    : "friendly";
 
   const prompt = `You are writing social captions for a local business.
 Business: ${params.businessName}
 Quote: "${params.quoteText}"
-Preferred brand tone: ${preferredTone}
+Preferred brand tone: ${requestedTone}
 
 Return ONLY JSON with keys friendly, premium, playful.
 Rules:
@@ -48,7 +52,7 @@ Rules:
 - each caption <= 200 chars
 - max 5 hashtags per caption
 - no markdown, no extra keys
-- make the ${preferredTone} caption the strongest/highest-quality option`;
+- lean the ${requestedTone} caption closest to the preferred tone`;
 
   const res = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",

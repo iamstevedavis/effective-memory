@@ -7,12 +7,10 @@ type BrandTone = "friendly" | "premium" | "playful";
 type Business = {
   id: number;
   name: string;
-  logo_url?: string | null;
-  brand_tone?: BrandTone;
-  brand_colors?: {
-    primary?: string;
-    secondary?: string;
-  };
+  timezone: string;
+  brand_colors: { primary?: string; secondary?: string } | null;
+  logo_url: string | null;
+  brand_tone: BrandTone;
 };
 
 type Review = {
@@ -26,24 +24,24 @@ type Review = {
 const DEFAULT_PRIMARY = "#1f2937";
 const DEFAULT_SECONDARY = "#374151";
 
-function normalizeHex(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  if (!/^#?[0-9a-fA-F]{6}$/.test(trimmed)) return "";
-  return trimmed.startsWith("#") ? trimmed.toLowerCase() : `#${trimmed.toLowerCase()}`;
-}
-
 export default function ImportPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [selectedBusinessId, setSelectedBusinessId] = useState<string>("");
   const [newBusinessName, setNewBusinessName] = useState("");
+  const [newBusinessLogoUrl, setNewBusinessLogoUrl] = useState("");
+  const [newBusinessPrimaryColor, setNewBusinessPrimaryColor] = useState(DEFAULT_PRIMARY);
+  const [newBusinessSecondaryColor, setNewBusinessSecondaryColor] = useState(DEFAULT_SECONDARY);
+  const [newBusinessTone, setNewBusinessTone] = useState<BrandTone>("friendly");
+
+  const [settingsName, setSettingsName] = useState("");
+  const [settingsTimezone, setSettingsTimezone] = useState("America/Toronto");
+  const [settingsLogoUrl, setSettingsLogoUrl] = useState("");
+  const [settingsPrimaryColor, setSettingsPrimaryColor] = useState(DEFAULT_PRIMARY);
+  const [settingsSecondaryColor, setSettingsSecondaryColor] = useState(DEFAULT_SECONDARY);
+  const [settingsTone, setSettingsTone] = useState<BrandTone>("friendly");
+
   const [result, setResult] = useState<string>("");
   const [reviews, setReviews] = useState<Review[]>([]);
-
-  const [logoUrl, setLogoUrl] = useState("");
-  const [primaryColor, setPrimaryColor] = useState(DEFAULT_PRIMARY);
-  const [secondaryColor, setSecondaryColor] = useState(DEFAULT_SECONDARY);
-  const [brandTone, setBrandTone] = useState<BrandTone>("friendly");
 
   const selectedBusiness = useMemo(
     () => businesses.find((b) => String(b.id) === selectedBusinessId) ?? null,
@@ -76,17 +74,21 @@ export default function ImportPage() {
 
   useEffect(() => {
     if (!selectedBusiness) {
-      setLogoUrl("");
-      setPrimaryColor(DEFAULT_PRIMARY);
-      setSecondaryColor(DEFAULT_SECONDARY);
-      setBrandTone("friendly");
+      setSettingsName("");
+      setSettingsTimezone("America/Toronto");
+      setSettingsLogoUrl("");
+      setSettingsPrimaryColor(DEFAULT_PRIMARY);
+      setSettingsSecondaryColor(DEFAULT_SECONDARY);
+      setSettingsTone("friendly");
       return;
     }
 
-    setLogoUrl(selectedBusiness.logo_url ?? "");
-    setPrimaryColor(selectedBusiness.brand_colors?.primary ?? DEFAULT_PRIMARY);
-    setSecondaryColor(selectedBusiness.brand_colors?.secondary ?? DEFAULT_SECONDARY);
-    setBrandTone(selectedBusiness.brand_tone ?? "friendly");
+    setSettingsName(selectedBusiness.name);
+    setSettingsTimezone(selectedBusiness.timezone || "America/Toronto");
+    setSettingsLogoUrl(selectedBusiness.logo_url ?? "");
+    setSettingsPrimaryColor(selectedBusiness.brand_colors?.primary ?? DEFAULT_PRIMARY);
+    setSettingsSecondaryColor(selectedBusiness.brand_colors?.secondary ?? DEFAULT_SECONDARY);
+    setSettingsTone(selectedBusiness.brand_tone ?? "friendly");
   }, [selectedBusiness]);
 
   async function createBusiness(e: FormEvent<HTMLFormElement>) {
@@ -100,10 +102,12 @@ export default function ImportPage() {
       body: JSON.stringify({
         name,
         timezone: "America/Toronto",
-        logoUrl,
-        primaryColor: normalizeHex(primaryColor) || DEFAULT_PRIMARY,
-        secondaryColor: normalizeHex(secondaryColor) || DEFAULT_SECONDARY,
-        brandTone
+        logoUrl: newBusinessLogoUrl.trim() || null,
+        brandColors: {
+          primary: newBusinessPrimaryColor,
+          secondary: newBusinessSecondaryColor
+        },
+        brandTone: newBusinessTone
       })
     });
     const data = await res.json();
@@ -113,41 +117,43 @@ export default function ImportPage() {
     }
 
     setNewBusinessName("");
+    setNewBusinessLogoUrl("");
+    setNewBusinessPrimaryColor(DEFAULT_PRIMARY);
+    setNewBusinessSecondaryColor(DEFAULT_SECONDARY);
+    setNewBusinessTone("friendly");
+
     await loadBusinesses();
     setSelectedBusinessId(String(data.business.id));
     setResult(`Created business: ${data.business.name}`);
   }
 
-  async function saveBranding(e: FormEvent<HTMLFormElement>) {
+  async function saveBrandingSettings(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selectedBusinessId) return;
-
-    const normalizedPrimary = normalizeHex(primaryColor);
-    const normalizedSecondary = normalizeHex(secondaryColor);
-    if (!normalizedPrimary || !normalizedSecondary) {
-      setResult("Branding save failed: colors must be valid hex (e.g. #1f2937)");
-      return;
-    }
 
     const res = await fetch(`/api/businesses/${selectedBusinessId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        logoUrl: logoUrl.trim(),
-        primaryColor: normalizedPrimary,
-        secondaryColor: normalizedSecondary,
-        brandTone
+        name: settingsName,
+        timezone: settingsTimezone,
+        logoUrl: settingsLogoUrl.trim() || null,
+        brandColors: {
+          primary: settingsPrimaryColor,
+          secondary: settingsSecondaryColor
+        },
+        brandTone: settingsTone
       })
     });
 
     const data = await res.json();
     if (!res.ok) {
-      setResult(`Branding save failed: ${data.error ?? "unknown error"}`);
+      setResult(`Update branding failed: ${data.error ?? "unknown error"}`);
       return;
     }
 
-    setResult(`Saved branding for ${data.business.name}`);
     await loadBusinesses();
+    setResult(`Saved branding settings for: ${data.business.name}`);
   }
 
   async function importCsv(e: FormEvent<HTMLFormElement>) {
@@ -177,13 +183,45 @@ export default function ImportPage() {
 
       <section style={{ marginBottom: 20 }}>
         <h2>Create business</h2>
-        <form onSubmit={createBusiness}>
+        <form onSubmit={createBusiness} style={{ display: "grid", gap: 8, maxWidth: 520 }}>
           <input
             value={newBusinessName}
             onChange={(e) => setNewBusinessName(e.target.value)}
             placeholder="Business name"
           />
-          <button type="submit" style={{ marginLeft: 8 }}>
+          <input
+            value={newBusinessLogoUrl}
+            onChange={(e) => setNewBusinessLogoUrl(e.target.value)}
+            placeholder="Logo URL (optional)"
+          />
+          <label>
+            Primary color{" "}
+            <input
+              type="color"
+              value={newBusinessPrimaryColor}
+              onChange={(e) => setNewBusinessPrimaryColor(e.target.value)}
+            />
+          </label>
+          <label>
+            Secondary color{" "}
+            <input
+              type="color"
+              value={newBusinessSecondaryColor}
+              onChange={(e) => setNewBusinessSecondaryColor(e.target.value)}
+            />
+          </label>
+          <label>
+            Brand tone{" "}
+            <select
+              value={newBusinessTone}
+              onChange={(e) => setNewBusinessTone(e.target.value as BrandTone)}
+            >
+              <option value="friendly">friendly</option>
+              <option value="premium">premium</option>
+              <option value="playful">playful</option>
+            </select>
+          </label>
+          <button type="submit" style={{ width: "fit-content" }}>
             Create
           </button>
         </form>
@@ -191,10 +229,7 @@ export default function ImportPage() {
 
       <section style={{ marginBottom: 20 }}>
         <h2>Select business</h2>
-        <select
-          value={selectedBusinessId}
-          onChange={(e) => setSelectedBusinessId(e.target.value)}
-        >
+        <select value={selectedBusinessId} onChange={(e) => setSelectedBusinessId(e.target.value)}>
           <option value="">Select…</option>
           {businesses.map((b) => (
             <option key={b.id} value={b.id}>
@@ -204,60 +239,55 @@ export default function ImportPage() {
         </select>
       </section>
 
-      <section style={{ marginBottom: 20 }}>
-        <h2>Branding settings</h2>
-        <p>Logo + colors + tone are used for captions and rendered image templates.</p>
-        <form onSubmit={saveBranding}>
-          <div style={{ display: "grid", gap: 8, maxWidth: 520 }}>
+      {selectedBusinessId ? (
+        <section style={{ marginBottom: 20 }}>
+          <h2>Branding settings</h2>
+          <form onSubmit={saveBrandingSettings} style={{ display: "grid", gap: 8, maxWidth: 520 }}>
+            <input
+              value={settingsName}
+              onChange={(e) => setSettingsName(e.target.value)}
+              placeholder="Business name"
+            />
+            <input
+              value={settingsTimezone}
+              onChange={(e) => setSettingsTimezone(e.target.value)}
+              placeholder="Timezone"
+            />
+            <input
+              value={settingsLogoUrl}
+              onChange={(e) => setSettingsLogoUrl(e.target.value)}
+              placeholder="Logo URL"
+            />
             <label>
-              Logo URL
+              Primary color{" "}
               <input
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                placeholder="https://example.com/logo.png"
-                style={{ display: "block", width: "100%" }}
+                type="color"
+                value={settingsPrimaryColor}
+                onChange={(e) => setSettingsPrimaryColor(e.target.value)}
               />
             </label>
-
             <label>
-              Primary color
+              Secondary color{" "}
               <input
-                value={primaryColor}
-                onChange={(e) => setPrimaryColor(e.target.value)}
-                placeholder="#1f2937"
-                style={{ display: "block", width: "100%" }}
+                type="color"
+                value={settingsSecondaryColor}
+                onChange={(e) => setSettingsSecondaryColor(e.target.value)}
               />
             </label>
-
             <label>
-              Secondary color
-              <input
-                value={secondaryColor}
-                onChange={(e) => setSecondaryColor(e.target.value)}
-                placeholder="#374151"
-                style={{ display: "block", width: "100%" }}
-              />
-            </label>
-
-            <label>
-              Brand tone
-              <select
-                value={brandTone}
-                onChange={(e) => setBrandTone(e.target.value as BrandTone)}
-                style={{ display: "block", width: "100%" }}
-              >
+              Brand tone{" "}
+              <select value={settingsTone} onChange={(e) => setSettingsTone(e.target.value as BrandTone)}>
                 <option value="friendly">friendly</option>
                 <option value="premium">premium</option>
                 <option value="playful">playful</option>
               </select>
             </label>
-          </div>
-
-          <button type="submit" disabled={!selectedBusinessId} style={{ marginTop: 10 }}>
-            Save branding
-          </button>
-        </form>
-      </section>
+            <button type="submit" style={{ width: "fit-content" }}>
+              Save branding settings
+            </button>
+          </form>
+        </section>
+      ) : null}
 
       <section style={{ marginBottom: 20 }}>
         <h2>Upload CSV</h2>

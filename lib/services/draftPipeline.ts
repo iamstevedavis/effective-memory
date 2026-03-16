@@ -2,12 +2,14 @@ import { renderDraftImage } from "./imageRenderer";
 import { selectQuoteCandidates } from "./quoteSelector";
 import { generateCaptionVariants } from "./captions";
 import { query } from "../db";
+import type { BrandTone } from "../branding";
 
 type BusinessRow = {
   id: number;
   name: string;
   brand_colors: Record<string, string> | null;
   logo_url: string | null;
+  brand_tone: BrandTone;
 };
 
 type CandidateRow = {
@@ -33,21 +35,22 @@ export type PipelineResult = {
 type DraftPipelineDeps = {
   listBusinesses: () => Promise<BusinessRow[]>;
   selectQuoteCandidates: (businessId: number, limit: number) => Promise<CandidateRow[]>;
-  generateCaptionVariants: (params: { businessName: string; quoteText: string }) => Promise<CaptionSet>;
+  generateCaptionVariants: (params: { businessName: string; quoteText: string; brandTone?: BrandTone }) => Promise<CaptionSet>;
   updateDraftCaption: (draftPostId: number, captionText: string) => Promise<void>;
   renderDraftImage: (params: {
     draftPostId: number;
     businessName: string;
     quoteText: string;
     brandHex?: string | null;
+    secondaryBrandHex?: string | null;
     logoUrl?: string | null;
   }) => Promise<{ publicPath: string }>;
   updateDraftImagePath: (draftPostId: number, imagePath: string) => Promise<void>;
   markDraftFailed: (draftPostId: number, reason: string) => Promise<void>;
 };
 
-function pickCaption(captions: CaptionSet) {
-  return captions.friendly || captions.premium || captions.playful;
+function pickCaption(captions: CaptionSet, brandTone: BrandTone) {
+  return captions[brandTone] || captions.friendly || captions.premium || captions.playful;
 }
 
 export function createDraftGenerationRunner(deps: DraftPipelineDeps) {
@@ -67,17 +70,20 @@ export function createDraftGenerationRunner(deps: DraftPipelineDeps) {
         try {
           const captions = await deps.generateCaptionVariants({
             businessName: business.name,
-            quoteText: candidate.quoteText
+            quoteText: candidate.quoteText,
+            brandTone: business.brand_tone
           });
 
-          await deps.updateDraftCaption(candidate.draftPostId, pickCaption(captions));
+          await deps.updateDraftCaption(candidate.draftPostId, pickCaption(captions, business.brand_tone));
 
           const brandHex = business.brand_colors?.primary ?? null;
+          const secondaryBrandHex = business.brand_colors?.secondary ?? null;
           const rendered = await deps.renderDraftImage({
             draftPostId: candidate.draftPostId,
             businessName: business.name,
             quoteText: candidate.quoteText,
             brandHex,
+            secondaryBrandHex,
             logoUrl: business.logo_url
           });
 
@@ -103,7 +109,7 @@ export function createDraftGenerationRunner(deps: DraftPipelineDeps) {
 const runDraftGenerationWithDb = createDraftGenerationRunner({
   listBusinesses: async () => {
     const businesses = await query<BusinessRow>(
-      `SELECT id, name, brand_colors, logo_url
+      `SELECT id, name, brand_colors, logo_url, brand_tone
        FROM businesses
        ORDER BY id ASC`
     );

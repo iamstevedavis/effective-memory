@@ -4,23 +4,33 @@ import { createDraftGenerationRunner } from "../lib/services/draftPipeline";
 async function successPathTest() {
   const updatedCaptions: Array<{ id: number; caption: string }> = [];
   const updatedImages: Array<{ id: number; imagePath: string }> = [];
+  const renderInputs: Array<{ brandHex?: string | null; secondaryBrandHex?: string | null }> = [];
 
   const run = createDraftGenerationRunner({
     listBusinesses: async () => [
-      { id: 7, name: "Cafe Nova", brand_colors: { primary: "#112233" }, logo_url: null }
+      {
+        id: 7,
+        name: "Cafe Nova",
+        brand_colors: { primary: "#112233", secondary: "#334455" },
+        logo_url: null,
+        brand_tone: "premium"
+      }
     ],
     selectQuoteCandidates: async () => [
       { draftPostId: 101, reviewId: 501, quoteText: "Amazing coffee and staff", score: 100 }
     ],
     generateCaptionVariants: async () => ({
       friendly: "Cafe Nova made our day ☕",
-      premium: "",
-      playful: ""
+      premium: "An elevated evening, made memorable at Cafe Nova.",
+      playful: "Coffee joy unlocked at Cafe Nova!"
     }),
     updateDraftCaption: async (id, caption) => {
       updatedCaptions.push({ id, caption });
     },
-    renderDraftImage: async () => ({ publicPath: "/generated/draft-101.png" }),
+    renderDraftImage: async (params) => {
+      renderInputs.push({ brandHex: params.brandHex, secondaryBrandHex: params.secondaryBrandHex });
+      return { publicPath: "/generated/draft-101.png" };
+    },
     updateDraftImagePath: async (id, imagePath) => {
       updatedImages.push({ id, imagePath });
     },
@@ -37,8 +47,11 @@ async function successPathTest() {
     draftsCompleted: 1,
     draftsFailed: 0
   });
-  assert.deepEqual(updatedCaptions, [{ id: 101, caption: "Cafe Nova made our day ☕" }]);
+  assert.deepEqual(updatedCaptions, [
+    { id: 101, caption: "An elevated evening, made memorable at Cafe Nova." }
+  ]);
   assert.deepEqual(updatedImages, [{ id: 101, imagePath: "/generated/draft-101.png" }]);
+  assert.deepEqual(renderInputs, [{ brandHex: "#112233", secondaryBrandHex: "#334455" }]);
 }
 
 async function failurePathTest() {
@@ -46,7 +59,7 @@ async function failurePathTest() {
 
   const run = createDraftGenerationRunner({
     listBusinesses: async () => [
-      { id: 8, name: "North Pizza", brand_colors: null, logo_url: null }
+      { id: 8, name: "North Pizza", brand_colors: null, logo_url: null, brand_tone: "friendly" }
     ],
     selectQuoteCandidates: async () => [
       { draftPostId: 202, reviewId: 601, quoteText: "Great service", score: 88 }
