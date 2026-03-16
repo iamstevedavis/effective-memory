@@ -16,27 +16,47 @@ export async function renderDraftImage(params: {
   businessName: string;
   quoteText: string;
   brandHex?: string | null;
+  secondaryBrandHex?: string | null;
   logoUrl?: string | null;
+  brandTone?: "friendly" | "premium" | "playful";
 }) {
   const width = 1080;
   const height = 1080;
-  const bg = params.brandHex && /^#?[0-9a-fA-F]{6}$/.test(params.brandHex)
-    ? (params.brandHex.startsWith("#") ? params.brandHex : `#${params.brandHex}`)
-    : "#1f2937";
+
+  const normalizeHex = (input: string | null | undefined, fallback: string) => {
+    if (!input) return fallback;
+    if (!/^#?[0-9a-fA-F]{6}$/.test(input)) return fallback;
+    return input.startsWith("#") ? input : `#${input}`;
+  };
+
+  const primary = normalizeHex(params.brandHex, "#1f2937");
+  const secondary = normalizeHex(params.secondaryBrandHex, "#374151");
+
+  const tone = params.brandTone ?? "friendly";
+  const toneFont = tone === "premium" ? "Georgia,serif" : "Arial,sans-serif";
+  const quoteColor = tone === "playful" ? "#fef08a" : "#ffffff";
 
   const business = esc(params.businessName);
   const quote = esc(params.quoteText);
   const logoBlock = params.logoUrl
-    ? `<text x="80" y="180" fill="#ffffff" font-size="28" font-family="Arial">logo: ${esc(params.logoUrl)}</text>`
+    ? `<text x="80" y="190" fill="#ffffff" font-size="22" font-family="Arial">logo: ${esc(params.logoUrl)}</text>`
     : "";
 
   const svg = `
   <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="100%" height="100%" fill="${bg}" />
-    <text x="80" y="100" fill="#ffffff" font-size="46" font-weight="700" font-family="Arial">${business}</text>
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="${primary}" />
+        <stop offset="100%" stop-color="${secondary}" />
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#bg)" />
+    <rect x="0" y="0" width="100%" height="14" fill="${secondary}" />
+    <text x="80" y="110" fill="#ffffff" font-size="46" font-weight="700" font-family="Arial">${business}</text>
+    <text x="900" y="110" fill="#ffffff" font-size="20" text-anchor="end" font-family="Arial">tone: ${tone}</text>
     ${logoBlock}
-    <foreignObject x="80" y="250" width="920" height="680">
-      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Arial,sans-serif;color:#ffffff;font-size:48px;line-height:1.25;">
+    <foreignObject x="80" y="260" width="920" height="680">
+      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:${toneFont};color:${quoteColor};font-size:48px;line-height:1.25;">
         “${quote}”
       </div>
     </foreignObject>
