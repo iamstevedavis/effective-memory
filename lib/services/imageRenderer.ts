@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
+import type { BrandTone } from "../branding";
 
 function esc(text: string): string {
   return text
@@ -11,6 +12,14 @@ function esc(text: string): string {
     .replaceAll("'", "&#39;");
 }
 
+function normalizeHex(color?: string | null): string | null {
+  if (!color) return null;
+  const trimmed = color.trim();
+  if (!trimmed) return null;
+  const withHash = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+  return /^#[0-9a-fA-F]{6}$/.test(withHash) ? withHash.toLowerCase() : null;
+}
+
 export async function renderDraftImage(params: {
   draftPostId: number;
   businessName: string;
@@ -18,19 +27,13 @@ export async function renderDraftImage(params: {
   brandHex?: string | null;
   secondaryBrandHex?: string | null;
   logoUrl?: string | null;
-  brandTone?: "friendly" | "premium" | "playful";
+  brandTone?: BrandTone;
 }) {
   const width = 1080;
   const height = 1080;
 
-  const normalizeHex = (input: string | null | undefined, fallback: string) => {
-    if (!input) return fallback;
-    if (!/^#?[0-9a-fA-F]{6}$/.test(input)) return fallback;
-    return input.startsWith("#") ? input : `#${input}`;
-  };
-
-  const primary = normalizeHex(params.brandHex, "#1f2937");
-  const secondary = normalizeHex(params.secondaryBrandHex, "#374151");
+  const primary = normalizeHex(params.brandHex) ?? "#1f2937";
+  const secondary = normalizeHex(params.secondaryBrandHex) ?? "#374151";
 
   const tone = params.brandTone ?? "friendly";
   const toneFont = tone === "premium" ? "Georgia,serif" : "Arial,sans-serif";

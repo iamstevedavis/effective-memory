@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "../../../../lib/db";
+import type { BrandTone } from "../../../../lib/branding";
 import { renderDraftImage } from "../../../../lib/services/imageRenderer";
 
 export async function POST(req: NextRequest) {
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
       business_name: string;
       brand_colors: Record<string, string> | null;
       logo_url: string | null;
-      brand_tone: "friendly" | "premium" | "playful";
+      brand_tone: BrandTone;
     }>(
       `SELECT d.id, d.quote_text, b.name AS business_name, b.brand_colors, b.logo_url, b.brand_tone
        FROM draft_posts d

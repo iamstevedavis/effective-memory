@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseBrandColors, parseLogoUrl, type BrandTone } from "../../../lib/branding";
 import { query } from "../../../lib/db";
-
-type BrandTone = "friendly" | "premium" | "playful";
-
-function normalizeHex(input: unknown): string | null {
-  const value = String(input ?? "").trim();
-  if (!value) return null;
-  if (!/^#?[0-9a-fA-F]{6}$/.test(value)) return null;
-  return value.startsWith("#") ? value.toLowerCase() : `#${value.toLowerCase()}`;
-}
 
 function normalizeBrandTone(input: unknown): BrandTone {
   const tone = String(input ?? "friendly").trim().toLowerCase();
@@ -20,16 +12,20 @@ export async function GET() {
   const result = await query<{
     id: number;
     name: string;
+    timezone: string;
+    brand_colors: Record<string, string> | null;
     logo_url: string | null;
     brand_tone: BrandTone;
-    brand_colors: { primary?: string; secondary?: string } | null;
   }>(
-    "SELECT id, name, logo_url, brand_tone, brand_colors FROM businesses ORDER BY id ASC"
+    `SELECT id, name, timezone, brand_colors, logo_url, brand_tone
+     FROM businesses
+     ORDER BY id ASC`
   );
 
   const businesses = result.rows.map((row) => ({
     id: row.id,
     name: row.name,
+    timezone: row.timezone,
     logo_url: row.logo_url,
     brand_tone: row.brand_tone,
     brand_colors: {
@@ -45,9 +41,21 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const name = String(body?.name ?? "").trim();
   const timezone = String(body?.timezone ?? "America/Toronto").trim();
-  const logoUrl = String(body?.logoUrl ?? "").trim() || null;
-  const primaryColor = normalizeHex(body?.primaryColor) ?? "#1f2937";
-  const secondaryColor = normalizeHex(body?.secondaryColor) ?? "#374151";
+
+  const parsedBrandColors =
+    body?.brandColors !== undefined
+      ? parseBrandColors(body.brandColors)
+      : parseBrandColors({
+          primary: body?.primaryColor,
+          secondary: body?.secondaryColor
+        });
+
+  const brandColors = {
+    primary: parsedBrandColors.primary ?? "#1f2937",
+    secondary: parsedBrandColors.secondary ?? "#374151"
+  };
+
+  const logoUrl = parseLogoUrl(body?.logoUrl);
   const brandTone = normalizeBrandTone(body?.brandTone);
 
   if (!name) {
@@ -57,20 +65,15 @@ export async function POST(req: NextRequest) {
   const result = await query<{
     id: number;
     name: string;
+    timezone: string;
+    brand_colors: Record<string, string> | null;
     logo_url: string | null;
     brand_tone: BrandTone;
-    brand_colors: { primary?: string; secondary?: string };
   }>(
     `INSERT INTO businesses (name, timezone, brand_colors, logo_url, brand_tone)
      VALUES ($1, $2, $3::jsonb, $4, $5)
-     RETURNING id, name, logo_url, brand_tone, brand_colors`,
-    [
-      name,
-      timezone,
-      JSON.stringify({ primary: primaryColor, secondary: secondaryColor }),
-      logoUrl,
-      brandTone
-    ]
+     RETURNING id, name, timezone, brand_colors, logo_url, brand_tone`,
+    [name, timezone, JSON.stringify(brandColors), logoUrl, brandTone]
   );
 
   return NextResponse.json({ business: result.rows[0] }, { status: 201 });
