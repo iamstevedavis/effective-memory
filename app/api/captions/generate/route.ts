@@ -15,8 +15,9 @@ export async function POST(req: NextRequest) {
       id: number;
       quote_text: string;
       business_name: string;
+      brand_tone: "friendly" | "premium" | "playful";
     }>(
-      `SELECT d.id, d.quote_text, b.name AS business_name
+      `SELECT d.id, d.quote_text, b.name AS business_name, b.brand_tone
        FROM draft_posts d
        JOIN businesses b ON b.id = d.business_id
        WHERE d.id = $1
@@ -31,7 +32,8 @@ export async function POST(req: NextRequest) {
     const row = draftRes.rows[0];
     const captions = await generateCaptionVariants({
       businessName: row.business_name,
-      quoteText: row.quote_text
+      quoteText: row.quote_text,
+      brandTone: row.brand_tone
     });
 
     return NextResponse.json({ captions });

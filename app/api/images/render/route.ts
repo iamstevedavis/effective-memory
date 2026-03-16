@@ -17,8 +17,9 @@ export async function POST(req: NextRequest) {
       business_name: string;
       brand_colors: Record<string, string> | null;
       logo_url: string | null;
+      brand_tone: "friendly" | "premium" | "playful";
     }>(
-      `SELECT d.id, d.quote_text, b.name AS business_name, b.brand_colors, b.logo_url
+      `SELECT d.id, d.quote_text, b.name AS business_name, b.brand_colors, b.logo_url, b.brand_tone
        FROM draft_posts d
        JOIN businesses b ON b.id = d.business_id
        WHERE d.id = $1
@@ -32,13 +33,16 @@ export async function POST(req: NextRequest) {
 
     const row = draft.rows[0];
     const brandHex = row.brand_colors?.primary ?? null;
+    const secondaryBrandHex = row.brand_colors?.secondary ?? null;
 
     const rendered = await renderDraftImage({
       draftPostId,
       businessName: row.business_name,
       quoteText: row.quote_text,
       brandHex,
-      logoUrl: row.logo_url
+      secondaryBrandHex,
+      logoUrl: row.logo_url,
+      brandTone: row.brand_tone
     });
 
     const updated = await query<{ id: number; image_path: string }>(
