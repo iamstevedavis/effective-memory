@@ -14,7 +14,7 @@
     "worker:schedule": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/schedule-worker.ts"
   },
   "dependencies": {
-    "next": "15.5.10",
+    "next": "15.5.14",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "pg": "8.12.0"
