@@ -1,81 +1,90 @@
-# effective-memory
+# PraiseLoop
 
-Reviews → Social MVP scaffold.
+Turns existing customer reviews into ready-to-post social media content for local
+businesses: deterministic quote selection, AI captions in the brand voice, branded
+image rendering, and a human-in-the-loop approval queue.
 
-## Local dev quickstart
+## Prerequisites
+
+- Node.js 22+ and npm 10+ (see `.nvmrc`)
+- Docker with the Compose plugin (runs Postgres and Redis containers)
+
+## Quickstart — host + containers (recommended for development)
 
 ```bash
 cp .env.example .env
-npm install
+npm ci
 docker compose up -d postgres redis
 npm run db:migrate
 npm run db:health
-npm run dev
-# in another terminal
-npx ts-node worker/index.ts
+npm run dev        # web on http://localhost:3000
+npm run worker     # in another terminal: draft generation loop
 ```
 
-Or run everything in containers:
+## Quickstart — all containers (development, hot reload)
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+The dev override runs `next dev` and mounts the repository into the web/worker
+containers. Migrations run once before web/worker start.
+
+## Quickstart — all containers (production-style)
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-`docker compose up` runs a one-shot `migrate` service first, then starts `web` and `worker` after migrations complete.
+Runs migrations once, then starts the built web app (`next start`) and the
+compiled worker. Generated images are shared between worker and web via the
+`generated_media` volume. Put this behind a reverse proxy; only port 3000 is
+published.
 
-## Database
+## Configuration
 
-- Migration tool: lightweight TypeScript runner (`scripts/migrate.ts`) executing SQL files from `db/migrations`.
-- Apply migrations: `npm run db:migrate`
-- Health check query: `npm run db:health`
-- Query helper: `lib/db.ts` (`query(...)` over `pg` pool)
+Copy `.env.example` to `.env`. Never commit `.env`.
 
-## Manual CSV import (MVP)
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `DATABASE_URL` | yes | `...@localhost:5432/...` on the host, `...@postgres:5432/...` in containers |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | yes (containers) | Defaults in `.env.example`; do not rename the database/volumes (data lives there) |
+| `OPENAI_API_KEY` | no | Enables caption generation; without it the worker marks affected drafts `failed` with an actionable error instead of crashing |
+| `DRAFT_PIPELINE_INTERVAL_MS` | no | Worker sweep interval (default `60000`) |
+| `REDIS_URL` | no | Reserved for future queue work; unused by the current worker |
 
-- UI page: `/import`
-- Create/select a business, upload CSV, and import reviews into `reviews` with `source="manual"`.
-- Supported CSV columns:
-  - required: `rating`, `text`, `reviewed_at` (ISO)
-  - optional: `author_name`
+Postgres and Redis ports are bound to loopback (`127.0.0.1`) only — reachable
+from the host, not exposed to the network.
 
-## Quote selector v1 (deterministic) + caption generation + image rendering
+## Database migrations
 
-- UI page: `/quotes`
-- Runs a deterministic selector for a business and persists top-N quote candidates in `draft_posts`.
-- Heuristics:
-  - prefer 4–5 star reviews
-  - prefer 30–200 character quotes
-  - reject profanity matches
-  - boost keyword matches (`food`, `service`, `clean`, `friendly`, etc.)
-- Caption generation endpoint returns 3 AI variants (`friendly`, `premium`, `playful`) and lets you save selected caption to `draft_posts.caption_text`.
-- Branded image rendering endpoint generates PNGs in local storage (`public/generated`) and saves path to `draft_posts.image_path`.
-- Requires `OPENAI_API_KEY` in environment for caption generation.
+- `npm run db:migrate` — applies SQL files from `db/migrations` in filename order; applied files are recorded in `schema_migrations`
+- `npm run db:health` — connectivity check
 
-## Approval queue
+## Tests, lint, typecheck, build
 
-- UI page: `/approval`
-- Lists draft posts grouped by status (`draft`, `approved`, `scheduled`)
-- Supports transitions:
-  - draft -> approved
-  - approved -> draft
-- Supports setting `scheduled_for` datetime for approved drafts.
-- Persists optional `audit_note` and updates `updated_at` on each transition.
+```bash
+npm test          # draft pipeline + branding routes + tooling regressions (synthetic, no external services)
+npm run lint      # ESLint
+npm run typecheck # tsc --noEmit
+npm run build     # next build
+```
 
-## Draft generation worker
+## Worker
 
-- Worker entrypoint: `worker/index.ts`
-- Automatically runs quote selection -> caption generation -> image render for each business on a timer.
-- New draft candidates are created in `draft_posts` with:
-  - `quote_text` from selector
-  - `caption_text` from caption generator (friendly variant)
-  - `image_path` from renderer output
-- Duplicates are avoided by skipping reviews already linked to an existing draft.
+- `npm run worker` — draft generation loop (quote selection → captions → image render) every `DRAFT_PIPELINE_INTERVAL_MS`
+- `npm run worker:schedule` — one-shot scheduling sweep for approved, due drafts (stub adapter)
 
-## Scheduling (stub adapter)
+## Production deployment notes
 
-- Scheduler adapter interface: `lib/integrations/scheduler.ts`
-- Stub implementation logs structured scheduling payload and returns `scheduled`.
-- Worker command: `npm run worker:schedule`
-  - picks up rows with `status='approved'` and due `scheduled_for`
-  - marks rows `status='scheduled'` after adapter call
+- `docker compose up --build` is the production-style path: multi-stage builds, deterministic `npm ci`, healthchecks, bounded shutdown (`stop_grace_period`), shared media volume, loopback-only database/Redis ports.
+- Restart safety: database and generated media live in named volumes (`postgres_data`, `generated_media`); container restarts preserve them.
+
+## Current limitations
+
+- Scheduler is a stub adapter; no direct social publishing yet
+- Redis is provisioned but unused (queue work is planned, see `DECISIONS.md`)
+- Manual CSV review import only
+- No authentication/authorization yet

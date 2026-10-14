@@ -1,30 +1,38 @@
 {
-  "name": "effective-memory",
+  "name": "praise-loop",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  },
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",
-    "lint": "echo 'lint placeholder'",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/test-draft-pipeline.ts && npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/test-business-branding-routes.ts",
+    "test": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/test-draft-pipeline.ts && npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/test-business-branding-routes.ts && npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/test-tooling.ts",
     "db:migrate": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/migrate.ts",
     "db:health": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/db-health.ts",
+    "worker": "ts-node worker/index.ts",
     "worker:schedule": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/schedule-worker.ts"
   },
   "dependencies": {
-    "next": "15.5.14",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "pg": "8.12.0"
+    "next": "15.5.28",
+    "pg": "8.23.1",
+    "react": "19.1.10",
+    "react-dom": "19.1.10",
+    "sharp": "0.35.5"
   },
   "devDependencies": {
-    "@types/node": "22.13.5",
-    "@types/react": "19.0.10",
-    "@types/react-dom": "19.0.4",
+    "@types/node": "22.20.5",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
     "ts-node": "10.9.2",
-    "typescript": "5.8.2",
-    "@types/pg": "8.11.6"
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.2"
   }
 }

@@ -16,6 +16,10 @@ Decision log to capture architecture/product calls and why they were made.
   Decision: Use lightweight markdown docs for alignment
   Why: Fast to edit, easy to review, low process overhead. Keeps intent, architecture, and workflow explicit without heavy tooling.
 
+- Date: 2026-10-14
+  Decision: Refresh dependencies, Docker, and build tooling to a supported baseline (issue #48)
+  Why: Reproducible installs (npm ci + lockfile), real ESLint, multi-stage Docker builds with healthchecks, Node 22 baseline, CI. Upgrades stayed within current major versions (Next 15, React 19, TypeScript 5); Next 16 / TypeScript 7 major upgrades are deferred. Redis/BullMQ queue remains planned — the worker stays a timer loop until #41.
+
 - Date: 2026-02-27
   Decision: Require explicit decision logging for architectural changes
   Why: Prevent re-litigating the same choices every week and reduce AI-driven drift in architecture over time.
