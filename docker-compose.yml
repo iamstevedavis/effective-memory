@@ -1,16 +1,19 @@
+# Production-style stack: multi-stage builds, npm ci, healthchecks,
+# bounded shutdown. For local development with hot reload, use
+# docker-compose.dev.yml as an override (see README).
 services:
   migrate:
     build:
       context: .
-      dockerfile: Dockerfile.web
+      dockerfile: Dockerfile.worker
     environment:
-      - NODE_ENV=development
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-    command: ["npm", "run", "db:migrate"]
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+    command: ["node", "dist-worker/scripts/migrate.js"]
     depends_on:
       postgres:
         condition: service_healthy
+    restart: "no"
 
   web:
     build:
@@ -18,48 +21,60 @@ services:
       dockerfile: Dockerfile.web
     ports: ["3000:3000"]
     environment:
-      - NODE_ENV=development
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes: ["generated_media:/app/public/generated"]
     depends_on:
       migrate:
         condition: service_completed_successfully
-      redis:
-        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    stop_grace_period: 15s
+    restart: unless-stopped
 
   worker:
     build:
       context: .
       dockerfile: Dockerfile.worker
     environment:
-      - NODE_ENV=development
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - DRAFT_PIPELINE_INTERVAL_MS=${DRAFT_PIPELINE_INTERVAL_MS:-60000}
+    volumes: ["generated_media:/app/public/generated"]
     depends_on:
       migrate:
         condition: service_completed_successfully
-      redis:
-        condition: service_started
+    stop_grace_period: 15s
+    restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-    ports: ["5432:5432"]
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-effective_memory}
+    # Loopback-only: reachable from the host for host+container dev,
+    # not exposed to the network.
+    ports: ["127.0.0.1:5432:5432"]
     volumes: ["postgres_data:/var/lib/postgresql/data"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-effective_memory}"]
       interval: 5s
       timeout: 3s
       retries: 20
 
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    ports: ["127.0.0.1:6379:6379"]
     volumes: ["redis_data:/data"]
 
 volumes:
   postgres_data:
   redis_data:
+  generated_media:

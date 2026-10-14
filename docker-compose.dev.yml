@@ -1,0 +1,41 @@
+# Development override: hot-reload web (next dev) + source mounts.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# Note: `environment` lists replace (not merge with) the base file, so all
+# variables are repeated here.
+services:
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+    command: ["npm", "run", "db:migrate"]
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: ["npm", "run", "dev"]
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: ["npm", "run", "worker"]
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - DRAFT_PIPELINE_INTERVAL_MS=${DRAFT_PIPELINE_INTERVAL_MS:-60000}
+    volumes:
+      - .:/app
+      - /app/node_modules

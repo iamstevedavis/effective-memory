@@ -16,7 +16,7 @@ Define and maintain the core stack in this section as the source of truth:
 ### Data store(s)
 
 - Postgres (primary datastore)
-- Redis (job queue + caching) via BullMQ
+- Redis (planned job queue + caching via BullMQ — not yet implemented; the worker is currently a simple timer loop)
 - If we later want fewer moving parts, we can consider a Postgres-backed queue, but start with Redis for maturity.
 
 ### Infrastructure / deployment model
@@ -26,14 +26,13 @@ Define and maintain the core stack in this section as the source of truth:
   - worker: background jobs
   - postgres
   - redis
-  - (optional) object storage: S3-compatible (MinIO) for generated images
+  - Generated images: shared `generated_media` volume between worker and web containers; S3-compatible (MinIO) object storage is a future option
 
 ### Testing and CI tooling
 
-- Unit: Vitest
-- Integration: Docker-based (Postgres/Redis) + API tests
-- Lint/format: ESLint + Prettier
-- CI: GitHub Actions (lint, typecheck, test)
+- Tests: Node `assert` suites run via ts-node (`scripts/test-*.ts`) with synthetic fixtures (no external services required)
+- Lint: ESLint (flat config + typescript-eslint)
+- CI: GitHub Actions (lint, typecheck, test, production build)
 
 ## Key patterns
 
@@ -75,20 +74,13 @@ Define and maintain the core stack in this section as the source of truth:
 
 ```text
 .
-├─ PRODUCT.md
-├─ ARCHITECTURE.md
-├─ DECISIONS.md
-├─ WORKFLOW.md
-├─ docker/
-├─ src/
-│  ├─ app/          # Next.js app (UI)
-│  ├─ api/          # API routes / handlers
-│  ├─ core/         # domain logic (ingestion/curation/generation/rendering/scheduling)
-│  ├─ db/           # schema, migrations, queries
-│  ├─ worker/       # background job runners
-│  ├─ integrations/ # Google/Buffer/etc adapters
-│  └─ shared/       # shared utilities/types
-└─ tests/
+├─ PRODUCT.md / ARCHITECTURE.md / DECISIONS.md / WORKFLOW.md
+├─ app/            # Next.js app (UI pages + API routes)
+├─ lib/            # shared domain logic (db, services, integrations)
+├─ worker/         # background draft-generation loop entrypoint
+├─ scripts/        # migrations, db health, scheduling sweep, test suites
+├─ db/migrations/  # SQL migrations
+└─ Dockerfile.web / Dockerfile.worker / Dockerfile.dev / docker-compose*.yml
 ```
 
 ## Don’t do X
