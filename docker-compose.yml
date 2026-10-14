@@ -8,7 +8,8 @@ services:
       dockerfile: Dockerfile.worker
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      # Compose services always reach Postgres via the service name.
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-effective_memory}
     command: ["node", "dist-worker/scripts/migrate.js"]
     depends_on:
       postgres:
@@ -22,7 +23,7 @@ services:
     ports: ["3000:3000"]
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-effective_memory}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     volumes: ["generated_media:/app/public/generated"]
     depends_on:
@@ -43,7 +44,7 @@ services:
       dockerfile: Dockerfile.worker
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-effective_memory}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - DRAFT_PIPELINE_INTERVAL_MS=${DRAFT_PIPELINE_INTERVAL_MS:-60000}
     volumes: ["generated_media:/app/public/generated"]
