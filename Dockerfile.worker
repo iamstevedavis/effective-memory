@@ -17,6 +17,8 @@ FROM node:22-bookworm AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/dist-worker ./dist-worker
+# migrate.js reads db/migrations relative to the working directory.
+COPY --from=builder /app/db ./db
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 CMD ["node", "dist-worker/worker/index.js"]
