@@ -102,7 +102,7 @@ skip honestly and exits 0, so CI stays green without credentials.
 - Scheduler is a stub adapter; no direct social publishing yet
 - Redis is provisioned but unused (queue work is planned, see `DECISIONS.md`)
 - Manual CSV review import only
-- No authentication/authorization yet
+- Owner authentication and operational setup: [AUTH.md](AUTH.md)
 
 Quote-card rendering uses Sharp/Pango measured wrapping (DejaVu Sans/Serif), a
 1080px canvas, 80px safe margins, and automatic black/white contrast. Names fit
@@ -131,3 +131,5 @@ all historical duplicates and draft references, marks extra rows `duplicate_of`,
 and prevents those rows entering new quote selection. UI reports imported,
 duplicate, empty, invalid and storage-failed rows, with at most 20 redacted errors.
 Ownership enforcement is supplied by #42 before any customer exposure.
+
+Before customer access, configure owner login and explicitly claim any legacy data as described in [AUTH.md](AUTH.md).

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
-import { POST } from "../app/api/reviews/import/route";
 import { selectQuoteCandidates } from "../lib/services/quoteSelector";
+const boundary = require("../lib/authorization");
+boundary.ownerRoute = (handler: unknown) => handler;
+boundary.currentOwner = () => "synthetic-owner";
+const { POST } = require("../app/api/reviews/import/route");
 import { parseCsv } from "../lib/csv";
 import { databaseFixture } from "./db-fixture";
 async function main() {

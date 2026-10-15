@@ -4,7 +4,7 @@
 
 - Always open PRs
 - One PR per issue
-- Max ~300 lines changed unless approved
+- Max ~500 lines changed unless approved
 - No dependency upgrades unless asked
 - Run tests before requesting review
 - Tests required

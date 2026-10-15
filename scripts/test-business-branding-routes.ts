@@ -1,3 +1,7 @@
+// Domain regressions bypass the boundary; test-authorization exercises real guards.
+const boundary = require("../lib/authorization");
+boundary.ownerRoute = (handler: unknown) => handler;
+boundary.currentOwner = () => "synthetic-owner";
 import assert from "node:assert/strict";
 
 const dbModule = require("../lib/db");
