@@ -51,3 +51,5 @@ records. No data is deleted by migration 011.
 
 CI now supplies disposable Postgres/Redis services and installs matching Playwright
 Chromium so database and all four browser/HTTP flows run instead of being skipped.
+
+Resume without an explicit business ID prefers the latest saved onboarding business, falling back to the latest owned legacy business. An explicit owned business ID selects another business. Progress shows the newest five drafts, so old archived attempts do not permanently hide newer previews.

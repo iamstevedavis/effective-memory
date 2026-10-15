@@ -22,6 +22,14 @@ async function main(){
     await c.query("INSERT INTO reviews(business_id,source,rating,text,reviewed_at) VALUES($1,'manual',5,'A synthetic welcome and thoughtful service',now())",[first.business.id]);
     const resumed=await (await onboarding.GET(request(`onboarding?businessId=${first.business.id}`))).json();assert.equal(resumed.reviews,1);
     assert.equal(resumed.business.timezone,"UTC");assert.deepEqual(resumed.drafts,[]);
+    await c.query("UPDATE businesses SET onboarding_key=NULL WHERE owner_id='onboard-a'");
+    assert.equal((await (await onboarding.GET(request("onboarding"))).json()).business.id,first.business.id,"resume owned legacy businesses without creating duplicates");
+    const legacy=(await c.query("INSERT INTO businesses(name,timezone,owner_id) VALUES('Legacy onboarding','UTC','onboard-a') RETURNING id")).rows[0].id;
+    assert.equal((await (await onboarding.GET(request("onboarding"))).json()).business.id,legacy,"choose newest owned business if no wizard key exists");
+    const drafts=(await c.query("INSERT INTO draft_posts(business_id,quote_text,caption_text,image_path,status) SELECT $1,'Synthetic current draft',CASE WHEN n>5 THEN 'Current preview' ELSE '' END,CASE WHEN n>5 THEN '/api/media/current-'||n||'.png' ELSE NULL END,CASE WHEN n>5 THEN 'draft' ELSE 'archived' END FROM generate_series(1,8) n RETURNING id",[legacy])).rows;
+    const current=await (await onboarding.GET(request(`onboarding?businessId=${legacy}`))).json();
+    assert.deepEqual(current.drafts.map((d:{id:string})=>d.id),drafts.slice(-5).reverse().map(d=>d.id));
+    assert.equal(current.drafts.filter((d:{caption_text:string})=>d.caption_text).length,3,"new successful previews must not be hidden by five old archived rows");
   });
   console.log("onboarding concurrent setup/idempotency/ownership/assets/timezone/resume tests passed");
 }
