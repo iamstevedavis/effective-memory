@@ -10,7 +10,7 @@ const DEFAULT_TIMEOUT_MS = 20_000;
 
 function timeoutMs(): number {
   const raw = Number(process.env.OPENAI_TIMEOUT_MS);
-  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_TIMEOUT_MS;
+  return Number.isFinite(raw) && raw > 0 ? Math.min(raw, 30000) : DEFAULT_TIMEOUT_MS;
 }
 
 function countHashtags(text: string): number {

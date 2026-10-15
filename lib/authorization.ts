@@ -36,9 +36,9 @@ export function ownerRoute(handler: (req: NextRequest, context: any) => Promise<
       let businessId: unknown, draftId: unknown;
       if (path === "/api/businesses" || path === "/api/branding/preview") { /* owner-wide operations */ }
       else if (/^\/api\/businesses\/\d+$/.test(path)) businessId = path.split("/").pop();
-      else if (["/api/reviews", "/api/drafts"].includes(path)) businessId = req.nextUrl.searchParams.get("businessId");
+      else if (["/api/reviews", "/api/drafts", "/api/generation"].includes(path)) businessId = req.nextUrl.searchParams.get("businessId");
       else if (["/api/reviews/import", "/api/quotes/select"].includes(path)) businessId = input.businessId;
-      else if (/^\/api\/(drafts\/(caption|status|schedule)|captions\/generate|images\/render)$/.test(path)) draftId = input.draftPostId;
+      else if (/^\/api\/(drafts\/(caption|status|schedule)|generation\/retry|captions\/generate|images\/render)$/.test(path)) draftId = input.draftPostId;
       else if (path.startsWith("/api/media/")) {
         const exists = await query("SELECT 1 FROM draft_posts d JOIN businesses b ON b.id=d.business_id WHERE b.owner_id=$1 AND d.image_path=$2", [owner,path]);
         if (!exists.rowCount) return deny(404, "Image not found");
@@ -50,7 +50,6 @@ export function ownerRoute(handler: (req: NextRequest, context: any) => Promise<
         if (!exists.rowCount) return deny(404, "Resource not found");
       } else if (!["/api/businesses", "/api/branding/preview"].includes(path) && !path.startsWith("/api/media/")) return deny(400, "Resource ID required");
       if (["/api/captions/generate", "/api/images/render"].includes(path) && !await chargeGeneration(owner)) return deny(429, "Daily generation limit reached");
-      if (path === "/api/quotes/select" && !await chargeGeneration(owner, Number(input.limit ?? 5))) return deny(429, "Daily generation limit reached");
       if (path === "/api/branding/preview" && !await chargeGeneration(owner, 1, "preview")) return deny(429, "Preview limit reached");
       const response = await owners.run(owner, () => handler(req, context));
       response.headers.set("Cache-Control", "private, no-store");

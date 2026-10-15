@@ -71,3 +71,7 @@ Decision log to capture architecture/product calls and why they were made.
 - Date: 2026-10-15
   Decision: NextAuth GitHub login with revocable database sessions and explicit legacy claims (#42).
   Why: A maintained OAuth implementation handles sign-in/CSRF cookies. The minimal adapter stores no provider tokens and hashes session tokens. Shared server guards authorize every API family; DB counters persist generation limits. Media moves outside public with legacy URL denial. No password database, team roles or production provider setup.
+
+- Date: 2026-10-15
+  Decision: BullMQ delivery with a Postgres generation outbox, weekly reservations and renewable claims (#43).
+  Why: Transactional business locks enforce quotas alongside draft uniqueness, while BullMQ provides the documented durable queue. An outbox recovers Redis loss without creating replacement drafts. Persisted stages bound redundant paid calls; retries and daily owner counters cap exposure.

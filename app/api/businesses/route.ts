@@ -17,8 +17,9 @@ async function handleGET() {
     brand_colors: Record<string, string> | null;
     logo_url: string | null;
     brand_tone: BrandTone;
+    weekly_target: number;
   }>(
-    `SELECT id, name, timezone, brand_colors, logo_url, brand_tone
+    `SELECT id, name, timezone, brand_colors, logo_url, brand_tone, weekly_target
      FROM businesses WHERE owner_id=$1
      ORDER BY id ASC`, [currentOwner()]
   );
@@ -29,6 +30,7 @@ async function handleGET() {
     timezone: row.timezone,
     logo_url: row.logo_url,
     brand_tone: row.brand_tone,
+    weekly_target: row.weekly_target,
     brand_colors: {
       primary: row.brand_colors?.primary ?? "#1f2937",
       secondary: row.brand_colors?.secondary ?? "#374151",
@@ -76,6 +78,7 @@ async function handlePOST(req: NextRequest) {
     brand_colors: Record<string, string> | null;
     logo_url: string | null;
     brand_tone: BrandTone;
+    weekly_target: number;
   }>(
     `INSERT INTO businesses (name, timezone, brand_colors, logo_url, brand_tone, owner_id)
      VALUES ($1, $2, $3::jsonb, $4, $5, $6)

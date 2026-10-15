@@ -100,7 +100,7 @@ skip honestly and exits 0, so CI stays green without credentials.
 ## Current limitations
 
 - Scheduler is a stub adapter; no direct social publishing yet
-- Redis is provisioned but unused (queue work is planned, see `DECISIONS.md`)
+- Durable weekly worker setup and recovery: [GENERATION.md](GENERATION.md)
 - Manual CSV review import only
 - Owner authentication and operational setup: [AUTH.md](AUTH.md)
 

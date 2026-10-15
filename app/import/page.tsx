@@ -12,6 +12,7 @@ type Business = {
   brand_colors: { primary?: string; secondary?: string; quoteSize?: "standard" | "large" } | null;
   logo_url: string | null;
   brand_tone: BrandTone;
+  weekly_target?: number;
 };
 
 type Review = {
@@ -41,6 +42,7 @@ export default function ImportPage() {
   const [settingsSecondaryColor, setSettingsSecondaryColor] = useState(DEFAULT_SECONDARY);
   const [settingsTone, setSettingsTone] = useState<BrandTone>("friendly");
 
+  const [weeklyTarget, setWeeklyTarget] = useState(3);
   const [quoteSize, setQuoteSize] = useState<"standard" | "large">("standard");
   const [result, setResult] = useState<string>("");
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -85,6 +87,7 @@ export default function ImportPage() {
       return;
     }
 
+    setWeeklyTarget(selectedBusiness.weekly_target ?? 3);
     setQuoteSize(selectedBusiness.brand_colors?.quoteSize ?? "standard");
     setSettingsName(selectedBusiness.name);
     setSettingsTimezone(selectedBusiness.timezone || "America/Toronto");
@@ -146,7 +149,7 @@ export default function ImportPage() {
           secondary: settingsSecondaryColor,
           template: "quote-card-v1", quoteSize
         },
-        brandTone: settingsTone
+        weeklyTarget, brandTone: settingsTone
       })
     });
 
@@ -287,6 +290,7 @@ export default function ImportPage() {
               </select>
             </label>
             <label>Quote text size <select value={quoteSize} onChange={e => setQuoteSize(e.target.value as "standard" | "large")}><option value="standard">Standard</option><option value="large">Large (short quotes)</option></select></label>
+            <label>Drafts per week (next week) <input type="number" min={1} max={5} value={weeklyTarget} onChange={e => setWeeklyTarget(Number(e.target.value))}/></label>
             <BrandPreview primary={settingsPrimaryColor} secondary={settingsSecondaryColor} quoteSize={quoteSize} tone={settingsTone} />
             <button type="submit" style={{ width: "fit-content" }}>
               Save branding settings
