@@ -83,3 +83,7 @@ Decision log to capture architecture/product calls and why they were made.
 - Date: 2026-10-15
   Decision: Keep #29 blocked until owner Buffer access and a permitted live test are available.
   Why: Official GraphQL/OAuth-PKCE, scheduling/media and rate-limit interfaces are documented in SCHEDULER.md with dated references. No configured account/channel, encryption key or public media origin is available. Retire false stub success and content logging; no alternative provider, scraping or unverified live success is substituted.
+
+- Date: 2026-10-15
+  Decision: Reserve business-local posting slots before provider submission (#28).
+  Why: Explicit UTC/local previews and documented DST resolution avoid browser-zone ambiguity. Durable unique claims commit before remote calls so acceptance followed by local failure cannot erase ambiguity. Provider-unavailable results are honest failures; #29 still gates real scheduling and cancel/reschedule.

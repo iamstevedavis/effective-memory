@@ -24,6 +24,7 @@ export function draftMutation(action: string, work: (req: NextRequest, context: 
     if(!row)return error("Draft not found",404);
     if(!Number.isInteger(body.version)||body.version!==row.version)return error("Draft changed; refresh and retry");
     if(["scheduled","published"].includes(row.status))return error("Use explicit provider cancel/reschedule before editing");
+    if((await c.query("SELECT 1 FROM posting_slot_claims WHERE draft_id=$1",[row.id])).rowCount)return error("Resolve provider scheduling/cancellation before editing");
     if(action==="schedule")return error("Scheduling requires the verified scheduler integration");
     if(row.status==="archived" && !(action==="status" && body.status==="draft"))return error("Restore archived content before editing");
     if(action==="status" && !["draft","approved","archived"].includes(body.status))return error("Invalid transition",400);

@@ -36,6 +36,7 @@ async function handlePATCH(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const body = await req.json();
+  if (body.timezone !== undefined && !validTimezone(String(body.timezone))) return NextResponse.json({error:"Use a valid IANA timezone"},{status:400});
   if (body.weeklyTarget !== undefined && (!Number.isInteger(body.weeklyTarget) || body.weeklyTarget < 1 || body.weeklyTarget > 5)) return NextResponse.json({error:"Weekly target must be 1–5"},{status:400});
   if (body?.brandColors !== undefined && !validBrandConfig(body.brandColors)) {
     return NextResponse.json({ error: "Invalid brand colors or template options" }, { status: 400 });
