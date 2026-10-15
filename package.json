@@ -12,11 +12,12 @@
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/test-draft-pipeline.ts && npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/test-business-branding-routes.ts && npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/test-tooling.ts",
+    "test": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/test-draft-pipeline.ts && npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/test-business-branding-routes.ts && npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/test-tooling.ts && npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/test-pilot.ts",
     "db:migrate": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/migrate.ts",
     "db:health": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/db-health.ts",
     "worker": "ts-node worker/index.ts",
-    "worker:schedule": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/schedule-worker.ts"
+    "worker:schedule": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/schedule-worker.ts",
+    "pilot:report": "ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/pilot-report.ts"
   },
   "dependencies": {
     "next": "15.5.28",

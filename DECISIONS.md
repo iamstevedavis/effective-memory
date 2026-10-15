@@ -12,6 +12,10 @@ Decision log to capture architecture/product calls and why they were made.
 
 ## Log
 
+- Date: 2026-10-15
+  Decision: Use a consented manual observation ledger and offline pilot report for #47
+  Why: Current draft status/updated_at cannot reconstruct approval edits or session history. Explicit observations preserve unknown values, exclude synthetic businesses and avoid collecting review text or adding an unauthenticated report endpoint. No analytics platform or new dependency; human pilot outcomes remain unverified.
+
 - Date: 2026-02-27
   Decision: Use lightweight markdown docs for alignment
   Why: Fast to edit, easy to review, low process overhead. Keeps intent, architecture, and workflow explicit without heavy tooling.
