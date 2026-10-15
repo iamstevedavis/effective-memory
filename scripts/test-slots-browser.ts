@@ -18,7 +18,7 @@ async function main(){
     writeFileSync(join(root,"fixture.png"),await sharp({create:{width:1080,height:1080,channels:3,background:"#123456"}}).png().toBuffer());
     const id=(await c.query("INSERT INTO draft_posts(business_id,quote_text,caption_text,image_path,status) VALUES($1,'Synthetic slot quote','Synthetic caption','/api/media/fixture.png','approved') RETURNING id",[bid])).rows[0].id;
     await webFixture(async base=>{
-      const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??"/usr/bin/chromium",args:["--no-sandbox"]});
+      const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH==="playwright"?undefined:process.env.CHROMIUM_PATH??"/usr/bin/chromium",args:["--no-sandbox"]});
       try{
         const context=await browser.newContext({timezoneId:"America/Los_Angeles"});await context.addCookies([{name:"next-auth.session-token",value:"slots-browser-session",url:base}]);
         const page=await context.newPage();await page.goto(`${base}/approval`);await page.getByRole("combobox").selectOption(String(bid));

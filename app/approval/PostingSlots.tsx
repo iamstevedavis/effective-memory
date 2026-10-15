@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 type Slot={weekday:number;time:string};
-export default function PostingSlots({businessId}:{businessId:string}){
-  const [zone,setZone]=useState(""),[settings,setSettings]=useState<Slot[]>([]),[slots,setSlots]=useState<string[]>([]),[drafts,setDrafts]=useState<{id:number;version:number;quote_text:string}[]>([]),[selected,setSelected]=useState<Record<number,boolean>>({}),[message,setMessage]=useState("");
-  async function load(){const [schedule,posts]=await Promise.all([fetch(`/api/posting-slots?businessId=${businessId}`),fetch(`/api/drafts?businessId=${businessId}`)]);const s=await schedule.json(),p=await posts.json();if(!schedule.ok){setMessage(s.error);return;}setZone(s.timezone);setSettings(s.settings);setSlots(s.slots);setDrafts((p.drafts??[]).filter((d:{status:string})=>d.status==="approved"));}
+export default function PostingSlots({businessId,approved}:{businessId:string;approved:{id:number;version:number;quote_text:string}[]}){
+  const [zone,setZone]=useState(""),[settings,setSettings]=useState<Slot[]>([]),[slots,setSlots]=useState<string[]>([]),[selected,setSelected]=useState<Record<number,boolean>>({}),[message,setMessage]=useState("");
+  const drafts=approved;
+  async function load(){const schedule=await fetch(`/api/posting-slots?businessId=${businessId}`);const s=await schedule.json();if(!schedule.ok){setMessage(s.error);return;}setZone(s.timezone);setSettings(s.settings);setSlots(s.slots);}
   useEffect(()=>{if(businessId)void load();},[businessId]);
   async function save(){const response=await fetch("/api/posting-slots",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({businessId,settings})});const data=await response.json();setMessage(response.ok?"Local schedule saved; existing submitted posts keep their UTC times":data.error);if(response.ok)await load();}
   async function assign(){if(drafts.filter(d=>selected[d.id]).length>Math.min(5,slots.length)){setMessage("Select no more than the available slots (maximum five)");return;}const items=drafts.filter(d=>selected[d.id]).slice(0,5).map((d,i)=>({draftPostId:d.id,version:d.version,instant:slots[i]}));const response=await fetch("/api/posting-slots/assign",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({businessId,confirm:true,items})});const data=await response.json();setMessage(data.results?data.results.map((r:{draftPostId:number;status:number;error?:string})=>`#${r.draftPostId}: ${r.status===200?"provider confirmed":r.error}`).join("; "):data.error);setSelected({});await load();}

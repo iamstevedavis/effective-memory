@@ -4,6 +4,7 @@ export default function HomePage() {
   return (
     <main style={{ padding: 24, fontFamily: "sans-serif" }}>
       <h1>hello</h1>
+      <p><a href="/onboarding">Start or resume business onboarding</a></p>
       <p>effective-memory scaffold is up.</p>
       <ul>
         <li><Link href="/import">Manual review CSV import</Link></li>

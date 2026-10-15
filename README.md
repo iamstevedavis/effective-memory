@@ -149,3 +149,6 @@ Real publishing is not configured: [Buffer feasibility and exact setup blockers]
 
 Timezone-aware weekly planning, DST rules, explicit bulk confirmation and provider
 limitations: [POSTING.md](POSTING.md). Apply migration 010 before running this UI.
+
+Start/resume setup at `/onboarding`; [ONBOARDING.md](ONBOARDING.md) covers imports,
+recovery, configuration, synthetic timing evidence and the pending live/manual check.

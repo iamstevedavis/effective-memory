@@ -98,6 +98,8 @@ export default function ApprovalPage() {
     const res = await fetch("/api/businesses");
     const data = await res.json();
     setBusinesses(data.businesses ?? []);
+    const requested=new URL(window.location.href).searchParams.get("businessId");
+    if(requested && (data.businesses??[]).some((b:Business)=>String(b.id)===requested))setBusinessId(requested);
   }
 
   async function loadDrafts(id: string) {
@@ -197,7 +199,7 @@ export default function ApprovalPage() {
       ) : null}
 
       <button onClick={approveSelected} disabled={!Object.values(selected).some(Boolean)}>Approve selected</button>
-      <PostingSlots key={businessId} businessId={businessId} />
+      <PostingSlots key={businessId} businessId={businessId} approved={byStatus.approved} />
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 16 }}>
         <div>
           <h2>Draft</h2>

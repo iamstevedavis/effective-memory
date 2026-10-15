@@ -87,3 +87,7 @@ Decision log to capture architecture/product calls and why they were made.
 - Date: 2026-10-15
   Decision: Reserve business-local posting slots before provider submission (#28).
   Why: Explicit UTC/local previews and documented DST resolution avoid browser-zone ambiguity. Durable unique claims commit before remote calls so acceptance followed by local failure cannot erase ambiguity. Provider-unavailable results are honest failures; #29 still gates real scheduling and cancel/reschedule.
+
+- Date: 2026-10-15
+  Decision: Derive onboarding progress from owned business/import/job data and deduplicate setup with an owner-scoped UUID (#30).
+  Why: Reuse existing ingestion, durable generation and rendering instead of another pipeline or analytics store. Persisted steps survive reload; unsafe logos/timezones fail before saving. Timings are explicitly synthetic until a live/manual owner walkthrough exists. Public sample assets ship separately from private generated media.
