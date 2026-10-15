@@ -224,6 +224,7 @@ export default function ApprovalPage() {
 
         <div>
           <h2>Approved</h2>
+          <p>Scheduling requires a verified Buffer connection. No post is submitted until the integration is configured.</p>
           <ul>
             {byStatus.approved.map((d) => (
               <li key={d.id} style={{ marginBottom: 14 }}>

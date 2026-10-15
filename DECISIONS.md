@@ -79,3 +79,7 @@ Decision log to capture architecture/product calls and why they were made.
 - Date: 2026-10-15
   Decision: Serialize draft edits with revisions, transactional policy and append-only audit events (#44).
   Why: Every mutation shares ownership/lifecycle checks and a transaction context; stale revisions fail instead of overwriting edits. Approval decodes the persisted PNG. Rendering uses content-addressed filenames so approved artifacts cannot change in place. Chromium browser checks use playwright-core with an explicitly installed browser, never paid providers.
+
+- Date: 2026-10-15
+  Decision: Keep #29 blocked until owner Buffer access and a permitted live test are available.
+  Why: Official GraphQL/OAuth-PKCE, scheduling/media and rate-limit interfaces are documented in SCHEDULER.md with dated references. No configured account/channel, encryption key or public media origin is available. Retire false stub success and content logging; no alternative provider, scraping or unverified live success is substituted.
