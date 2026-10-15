@@ -23,7 +23,7 @@
   "dependencies": {
     "bullmq": "6.3.15",
     "ioredis": "5.8.2",
-    "next": "15.5.28",
+    "next": "16.4.2",
     "next-auth": "4.24.15",
     "pg": "8.23.1",
     "react": "19.1.10",
