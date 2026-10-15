@@ -88,3 +88,5 @@ npm run build     # next build
 - Redis is provisioned but unused (queue work is planned, see `DECISIONS.md`)
 - Manual CSV review import only
 - No authentication/authorization yet
+
+Pilot preparation, manual measurements, and privacy-safe reporting: [PILOT.md](PILOT.md).
