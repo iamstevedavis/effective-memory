@@ -1,7 +1,7 @@
 # Durable weekly generation (#43)
 
 Run `npm ci`, `npm run db:migrate` (008), configure `REDIS_URL`, and run `npm run worker`.
-Compose wires Redis into the worker. BullMQ 6 handles durable delivery; Postgres
+Compose wires Redis into the worker. BullMQ 6 with ioredis handles durable delivery; Postgres
 is the authoritative outbox/claim/quota store, so lost Redis deliveries are rebuilt.
 The worker scans every 60s (minimum configurable 5s), not five new drafts per tick.
 Only owned businesses participate. Import settings exposes weekly target 1–5,

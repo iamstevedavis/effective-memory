@@ -45,6 +45,9 @@ async function main() {
     assert.equal((await requestGeneration(bid,5,now)).inserted,3,"new business-local week rolls quota");
     assert.equal((await requestGeneration(bid,5,now)).inserted,0);
     assert.equal((await client.query("SELECT count(*) n FROM draft_posts WHERE business_id=$1",[bid])).rows[0].n,"6");
+    const following = new Date("2026-10-26T04:00:00Z");
+    assert.equal((await requestGeneration(bid,5,following)).inserted,2);
+    assert.equal((await requestGeneration(bid,5,following)).reason,"backlog_full");
     await assert.rejects(client.query("UPDATE businesses SET weekly_target=6 WHERE id=$1",[bid]));
     const empty = (await client.query("INSERT INTO businesses(name,timezone,owner_id) VALUES('Empty synthetic','UTC','generation-owner') RETURNING id")).rows[0].id;
     assert.equal((await requestGeneration(empty,3,now)).reason,"reviews_exhausted");
