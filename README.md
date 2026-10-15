@@ -121,3 +121,13 @@ Save. `quote-card-v1` is the single supported template. Standard fits quotes at
 Saving settings never changes existing draft images; explicitly regenerate and
 review a new image. `TEST_DATABASE_URL=postgres://... npm test` also verifies real
 Postgres migration preservation and settings round-trip in a disposable schema.
+
+CSV imports are limited to 1 MB / 1000 logical rows; quoted multiline cells are
+supported. Optional `source_review_id` and `source_url` preserve manual-source
+provenance. Reimports use a database-unique per-business/source ID, or a normalized
+(rating/text/author/UTC millisecond date) fingerprint. Fingerprints cannot identify
+edited reviews without stable IDs. Original text is retained. Migration 006 keeps
+all historical duplicates and draft references, marks extra rows `duplicate_of`,
+and prevents those rows entering new quote selection. UI reports imported,
+duplicate, empty, invalid and storage-failed rows, with at most 20 redacted errors.
+Ownership enforcement is supplied by #42 before any customer exposure.

@@ -37,11 +37,11 @@ export async function selectQuoteCandidates(businessId: number, limit = 5) {
   const reviews = await query<ReviewRow>(
     `SELECT r.id, r.business_id, r.rating, r.text
      FROM reviews r
-     WHERE r.business_id = $1
+     WHERE r.business_id = $1 AND r.duplicate_of IS NULL
        AND NOT EXISTS (
          SELECT 1
          FROM draft_posts d
-         WHERE d.review_id = r.id
+         WHERE d.review_id = r.id OR d.review_id IN (SELECT id FROM reviews WHERE duplicate_of = r.id)
        )
      ORDER BY r.reviewed_at DESC, r.id DESC
      LIMIT 300`,
