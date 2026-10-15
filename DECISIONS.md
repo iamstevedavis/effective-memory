@@ -55,3 +55,7 @@ Decision log to capture architecture/product calls and why they were made.
 - Date: 2026-02-27
   Decision: PR-only development workflow (no direct pushes to main)
   Why: Prevent accidental architecture drift or destructive changes from AI agent. Maintain human oversight and review discipline.
+
+- Date: 2026-10-15
+  Decision: Render quote cards with Sharp's Pango text backend and DejaVu fonts (#8).
+  Why: Actual glyph rasterization and measured wrapping replace unsupported SVG foreignObject layout. Runtime containers install the same font family; bounded embedded raster logos eliminate remote fetching and its SSRF risk. No text is silently shortened.
