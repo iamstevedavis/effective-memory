@@ -1,12 +1,13 @@
 "use client";
 
+import PostingSlots from "./PostingSlots";
 import { useEffect, useMemo, useState } from "react";
 
 type Business = { id: number; name: string };
 type Draft = {
   id: number; version: number;
   rating?: number; author_name?: string; reviewed_at?: string; source?: string; source_url?: string;
-  job_state?: string; error_code?: string;
+  provider_state?: string; job_state?: string; error_code?: string;
   review_id: number | null;
   quote_text: string;
   caption_text: string;
@@ -36,6 +37,7 @@ function PostPreview({ draft, scheduledPreview, onChanged }: { draft: Draft; sch
     <div style={{ marginTop: 8, padding: 10, border: "1px solid #ddd", borderRadius: 6, background: "#fafafa" }}>
       <p>Source: {draft.source ?? "unavailable"} · {draft.rating ?? "?"}★ · {draft.author_name ?? "Anonymous"} · {draft.reviewed_at ? new Date(draft.reviewed_at).toLocaleDateString() : "Date unknown"}</p>
       {draft.source_url ? <a href={draft.source_url} target="_blank" rel="noreferrer">Original review</a> : null}
+      <p>Provider: {draft.provider_state ?? "not submitted"}</p>
       <DraftControls draft={draft} onChanged={onChanged} />
       <div style={{ marginBottom: 8 }}>
         <strong>Image:</strong>
@@ -195,6 +197,7 @@ export default function ApprovalPage() {
       ) : null}
 
       <button onClick={approveSelected} disabled={!Object.values(selected).some(Boolean)}>Approve selected</button>
+      <PostingSlots key={businessId} businessId={businessId} />
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 16 }}>
         <div>
           <h2>Draft</h2>

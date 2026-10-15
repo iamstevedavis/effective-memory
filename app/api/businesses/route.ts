@@ -45,6 +45,7 @@ async function handleGET() {
 
 async function handlePOST(req: NextRequest) {
   const body = await req.json();
+  if (body.timezone !== undefined && !validTimezone(String(body.timezone))) return NextResponse.json({error:"Use a valid IANA timezone"},{status:400});
   if (body?.brandColors !== undefined && !validBrandConfig(body.brandColors)) {
     return NextResponse.json({ error: "Invalid brand colors or template options" }, { status: 400 });
   }

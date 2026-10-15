@@ -146,3 +146,6 @@ sessions and fixtures only, with no external AI/social calls. Rollback requires
 stopping writes first; retain audit events, revision columns, and immutable media.
 
 Real publishing is not configured: [Buffer feasibility and exact setup blockers](SCHEDULER.md). The legacy scheduling CLI fails closed.
+
+Timezone-aware weekly planning, DST rules, explicit bulk confirmation and provider
+limitations: [POSTING.md](POSTING.md). Apply migration 010 before running this UI.
