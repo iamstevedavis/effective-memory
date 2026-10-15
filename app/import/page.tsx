@@ -174,7 +174,7 @@ export default function ImportPage() {
     }
 
     setResult(
-      `Imported ${data.imported}, skipped empty ${data.skippedEmpty}, rejected ${data.rejectedInvalid}`
+      `Imported ${data.imported}, duplicates ${data.duplicates}, storage failures ${data.failedRows}, skipped empty ${data.skippedEmpty}, rejected ${data.rejectedInvalid}. ${(data.errors ?? []).map((e: {row: number; error: string}) => `Row ${e.row}: ${e.error}`).join("; ")}`
     );
 
     await loadReviews(selectedBusinessId);

@@ -37,7 +37,7 @@ export async function selectQuoteCandidates(businessId: number, limit = 5) {
   const reviews = await query<ReviewRow>(
     `SELECT r.id, r.business_id, r.rating, r.text
      FROM reviews r
-     WHERE r.business_id = $1
+     WHERE r.business_id = $1 AND r.duplicate_of IS NULL
        AND NOT EXISTS (
          SELECT 1
          FROM draft_posts d
