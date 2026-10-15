@@ -4,6 +4,7 @@ import sharp from "sharp";
 import { NextRequest, NextResponse } from "next/server";
 import { currentOwner } from "../authorization";
 import { query, transaction } from "../db";
+import { generationWeek } from "./generation";
 import { mediaRoot } from "./media";
 export async function availableImage(path: string | null) {
   if (!path || !/^\/api\/media\/[A-Za-z0-9][A-Za-z0-9._-]*\.png$/.test(path)) return false;
@@ -30,16 +31,29 @@ export function draftMutation(action: string, work: (req: NextRequest, context: 
     const active=(await c.query("SELECT 1 FROM generation_jobs WHERE draft_id=$1 AND state IN ('pending','running','retry')",[row.id])).rowCount;
     if(active && !archiving)return error("Generation is still active; wait for completion or archive");
     if(action==="status" && body.status==="approved" && (!row.caption_text.trim()||!await availableImage(row.image_path)))return error("Approval needs a caption and available 1080px PNG");
-    await c.query("SELECT set_config('app.actor_id',$1,true),set_config('app.action',$2,true),set_config('app.reason',$3,true)",[owner,action,`${action}:${action==='status'?body.status:'explicit_owner_action'}`]);
+    await c.query("SELECT set_config('app.actor_id',$1,true),set_config('app.action',$2,true),set_config('app.reason',$3,true)",[owner,action,action === "status" && typeof body.auditNote === "string" && body.auditNote.trim() ? body.auditNote.trim() : `${action}:${action==='status'?body.status:'explicit_owner_action'}`]);
     const response=await work(req,context);
     if(!response.ok)return response;
     if(archiving)await c.query("UPDATE generation_jobs SET state='failed',lease=NULL,error_code='archived' WHERE draft_id=$1 AND state IN ('pending','running','retry')",[row.id]);
-    if(!["status","retry"].includes(action))await c.query("UPDATE draft_posts SET status='draft',updated_at=now() WHERE id=$1",[row.id]);
+    if(!["status","retry","captions"].includes(action))await c.query("UPDATE draft_posts SET status='draft',updated_at=now() WHERE id=$1",[row.id]);
     const draft=(await c.query("SELECT * FROM draft_posts WHERE id=$1",[row.id])).rows[0];
     return NextResponse.json({...await response.json(),draft},{status:response.status});
   });
 }
 export async function regenerateDraft(draftId: number) {
+  // Legacy/manual complete drafts may not have a job yet. Attach one to the
+  // current period without allocating another draft or resetting any quota.
+  const row=(await query("SELECT d.business_id,b.timezone,b.weekly_target FROM draft_posts d JOIN businesses b ON b.id=d.business_id WHERE d.id=$1",[draftId])).rows[0];
+  if(!row)return false;
+  if(!(await query("SELECT 1 FROM generation_jobs WHERE draft_id=$1",[draftId])).rowCount){
+    const week=generationWeek(new Date(),row.timezone);
+    await query(`INSERT INTO generation_periods(business_id,period_start,timezone,target,allocated,completed)
+      SELECT $1,$2,$3,$4,count(*),count(*) FILTER(WHERE caption_text<>'' AND image_path IS NOT NULL)
+      FROM draft_posts WHERE business_id=$1 AND duplicate_of IS NULL
+      AND (created_at AT TIME ZONE $3)::date >= $2::date AND (created_at AT TIME ZONE $3)::date < $2::date+7
+      ON CONFLICT DO NOTHING`,[row.business_id,week,row.timezone,row.weekly_target]);
+    await query("INSERT INTO generation_jobs(business_id,period_start,draft_id,state) VALUES($1,$2,$3,'complete') ON CONFLICT(draft_id) DO NOTHING",[row.business_id,week,draftId]);
+  }
   const result=await query("UPDATE generation_jobs SET state='pending',attempts=0,manual_retries=manual_retries+1,next_at=now(),lease=NULL,error_code=NULL WHERE draft_id=$1 AND state IN ('complete','failed') AND manual_retries<2 RETURNING id",[draftId]);
   if(!result.rowCount)return false;
   await query("UPDATE draft_posts SET caption_text='',image_path=NULL,status='draft',updated_at=now() WHERE id=$1",[draftId]);
