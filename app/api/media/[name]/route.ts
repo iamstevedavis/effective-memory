@@ -1,3 +1,4 @@
+import { ownerRoute } from "../../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { readFileSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 // Serves runtime-generated draft images from the shared media volume. Files
 // under public/ written at runtime are not guaranteed to be served by the
 // Next production server, so all generated media flows through this route.
-export async function GET(
+async function handleGET(
   _req: NextRequest,
   { params }: { params: Promise<{ name: string }> }
 ) {
@@ -41,3 +42,5 @@ export async function GET(
     }
   });
 }
+
+export const GET = ownerRoute(handleGET);

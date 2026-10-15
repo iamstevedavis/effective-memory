@@ -1,8 +1,9 @@
+import { ownerRoute } from "../../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "../../../../lib/db";
 import { parseCsv } from "../../../../lib/csv";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const formData = await req.formData();
   const businessIdRaw = String(formData.get("businessId") ?? "").trim();
   const file = formData.get("file");
@@ -80,3 +81,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ imported, duplicates, failedRows, skippedEmpty, rejectedInvalid, errors });
 }
+
+export const POST = ownerRoute(handlePOST);

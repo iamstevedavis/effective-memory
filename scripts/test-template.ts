@@ -2,7 +2,10 @@ import { databaseFixture } from "./db-fixture";
 import assert from "node:assert/strict";
 import { quoteOptions, validBrandConfig, parseBrandColors } from "../lib/branding";
 import { renderQuoteCard } from "../lib/services/imageRenderer";
-import { POST } from "../app/api/branding/preview/route";
+const boundary = require("../lib/authorization");
+boundary.ownerRoute = (handler: unknown) => handler;
+boundary.currentOwner = () => "synthetic-owner";
+const { POST } = require("../app/api/branding/preview/route");
 import { NextRequest } from "next/server";
 async function main() {
   assert.deepEqual(quoteOptions(undefined), { template: "quote-card-v1", quoteSize: "standard" });

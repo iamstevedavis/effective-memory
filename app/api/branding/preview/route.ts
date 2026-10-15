@@ -1,7 +1,8 @@
+import { ownerRoute } from "../../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { renderQuoteCard } from "../../../../lib/services/imageRenderer";
 import { parseBrandColors, isBrandTone, validBrandConfig } from "../../../../lib/branding";
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const body = await req.json();
     if (!validBrandConfig(body.brandColors)) throw new Error("Invalid configuration");
@@ -13,3 +14,5 @@ export async function POST(req: NextRequest) {
     return new NextResponse(new Uint8Array(png), { headers: { "Content-Type": "image/png", "Cache-Control": "no-store" } });
   } catch { return NextResponse.json({ error: "Use supported template options and six-digit brand colors" }, { status: 400 }); }
 }
+
+export const POST = ownerRoute(handlePOST);

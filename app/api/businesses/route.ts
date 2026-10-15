@@ -1,3 +1,4 @@
+import { ownerRoute, currentOwner } from "../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { parseBrandColors, parseLogoUrl, validBrandConfig, type BrandTone } from "../../../lib/branding";
 import { query } from "../../../lib/db";
@@ -8,7 +9,7 @@ function normalizeBrandTone(input: unknown): BrandTone {
   return "friendly";
 }
 
-export async function GET() {
+async function handleGET() {
   const result = await query<{
     id: number;
     name: string;
@@ -18,8 +19,8 @@ export async function GET() {
     brand_tone: BrandTone;
   }>(
     `SELECT id, name, timezone, brand_colors, logo_url, brand_tone
-     FROM businesses
-     ORDER BY id ASC`
+     FROM businesses WHERE owner_id=$1
+     ORDER BY id ASC`, [currentOwner()]
   );
 
   const businesses = result.rows.map((row) => ({
@@ -39,7 +40,7 @@ export async function GET() {
   return NextResponse.json({ businesses });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const body = await req.json();
   if (body?.brandColors !== undefined && !validBrandConfig(body.brandColors)) {
     return NextResponse.json({ error: "Invalid brand colors or template options" }, { status: 400 });
@@ -76,11 +77,14 @@ export async function POST(req: NextRequest) {
     logo_url: string | null;
     brand_tone: BrandTone;
   }>(
-    `INSERT INTO businesses (name, timezone, brand_colors, logo_url, brand_tone)
-     VALUES ($1, $2, $3::jsonb, $4, $5)
+    `INSERT INTO businesses (name, timezone, brand_colors, logo_url, brand_tone, owner_id)
+     VALUES ($1, $2, $3::jsonb, $4, $5, $6)
      RETURNING id, name, timezone, brand_colors, logo_url, brand_tone`,
-    [name, timezone, JSON.stringify(brandColors), logoUrl, brandTone]
+    [name, timezone, JSON.stringify(brandColors), logoUrl, brandTone, currentOwner()]
   );
 
   return NextResponse.json({ business: result.rows[0] }, { status: 201 });
 }
+
+export const GET = ownerRoute(handleGET);
+export const POST = ownerRoute(handlePOST);

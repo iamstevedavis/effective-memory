@@ -54,7 +54,7 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `OPENAI_API_KEY` | no | Enables caption generation; without it the worker marks affected drafts `failed` with an actionable error instead of crashing |
 | `OPENAI_TIMEOUT_MS` | no | Caption provider timeout in milliseconds (default `20000`); on timeout the draft is marked `failed` with an actionable error |
 | `DRAFT_PIPELINE_INTERVAL_MS` | no | Worker sweep interval (default `60000`) |
-| `MEDIA_ROOT` | no | Where rendered draft images are written/served (default `public/generated`, the `generated_media` volume mount in Compose) |
+| `MEDIA_ROOT` | no | Where rendered draft images are written/served (default `private-media`, the owner-protected `generated_media` volume mount in Compose; host upgrades must move existing images there as described in AUTH.md) |
 | `REDIS_URL` | no | Reserved for future queue work; unused by the current worker |
 
 Postgres and Redis ports are bound to loopback (`127.0.0.1`) only — reachable
@@ -102,7 +102,7 @@ skip honestly and exits 0, so CI stays green without credentials.
 - Scheduler is a stub adapter; no direct social publishing yet
 - Redis is provisioned but unused (queue work is planned, see `DECISIONS.md`)
 - Manual CSV review import only
-- No authentication/authorization yet
+- Owner authentication and operational setup: [AUTH.md](AUTH.md)
 
 Quote-card rendering uses Sharp/Pango measured wrapping (DejaVu Sans/Serif), a
 1080px canvas, 80px safe margins, and automatic black/white contrast. Names fit
@@ -131,3 +131,5 @@ all historical duplicates and draft references, marks extra rows `duplicate_of`,
 and prevents those rows entering new quote selection. UI reports imported,
 duplicate, empty, invalid and storage-failed rows, with at most 20 redacted errors.
 Ownership enforcement is supplied by #42 before any customer exposure.
+
+Before customer access, configure owner login and explicitly claim any legacy data as described in [AUTH.md](AUTH.md).

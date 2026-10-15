@@ -1,7 +1,8 @@
+import { ownerRoute } from "../../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { selectQuoteCandidates } from "../../../../lib/services/quoteSelector";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const body = await req.json();
   const businessId = Number(body?.businessId);
   const limit = Number(body?.limit ?? 5);
@@ -17,3 +18,5 @@ export async function POST(req: NextRequest) {
   const candidates = await selectQuoteCandidates(businessId, limit);
   return NextResponse.json({ inserted: candidates.length, candidates });
 }
+
+export const POST = ownerRoute(handlePOST);

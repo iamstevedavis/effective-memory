@@ -1,3 +1,4 @@
+import { ownerRoute } from "../../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { parseBrandColors, parseLogoUrl, validBrandConfig, type BrandTone } from "../../../../lib/branding";
 import { query } from "../../../../lib/db";
@@ -24,7 +25,7 @@ function normalizeHex(input: unknown): string | null {
   return value.startsWith("#") ? value.toLowerCase() : `#${value.toLowerCase()}`;
 }
 
-export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+async function handlePATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const params = await context.params;
   const businessId = Number(params.id);
 
@@ -131,3 +132,5 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
   return NextResponse.json({ business: updated.rows[0] });
 }
+
+export const PATCH = ownerRoute(handlePATCH);

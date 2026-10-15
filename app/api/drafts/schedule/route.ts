@@ -1,7 +1,8 @@
+import { ownerRoute } from "../../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "../../../../lib/db";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const body = await req.json();
   const draftPostId = Number(body?.draftPostId);
   const scheduledFor = String(body?.scheduledFor ?? "").trim();
@@ -35,3 +36,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ draft: result.rows[0] });
 }
+
+export const POST = ownerRoute(handlePOST);
