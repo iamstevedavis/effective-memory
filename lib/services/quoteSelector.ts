@@ -41,7 +41,7 @@ export async function selectQuoteCandidates(businessId: number, limit = 5) {
        AND NOT EXISTS (
          SELECT 1
          FROM draft_posts d
-         WHERE d.review_id = r.id
+         WHERE d.review_id = r.id OR d.review_id IN (SELECT id FROM reviews WHERE duplicate_of = r.id)
        )
      ORDER BY r.reviewed_at DESC, r.id DESC
      LIMIT 300`,

@@ -65,14 +65,16 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-    const result = await query(
+    const result = await query<{ inserted: boolean }>(
       `INSERT INTO reviews
       (business_id, source, source_review_id, rating, author_name, text, reviewed_at, source_url)
       VALUES ($1, 'manual', $6, $2, $3, $4, $5, $7)
-      ON CONFLICT (business_id, source, identity_key) DO NOTHING RETURNING id`,
+      ON CONFLICT (business_id, source, identity_key) DO UPDATE
+      SET source_url = COALESCE(reviews.source_url, EXCLUDED.source_url)
+      RETURNING (xmax = 0) AS inserted`,
       [businessId, rating, authorName, text, date.toISOString(), row.source_review_id || null, row.source_url || null]
     );
-    if (result.rowCount) imported += 1; else duplicates += 1;
+    if (result.rows[0].inserted) imported += 1; else duplicates += 1;
     } catch { failedRows++; if (errors.length < 20) errors.push({ row: index + 2, error: "Storage failure; retry this file safely" }); }
   }
 

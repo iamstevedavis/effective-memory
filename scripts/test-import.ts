@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { POST } from "../app/api/reviews/import/route";
+import { selectQuoteCandidates } from "../lib/services/quoteSelector";
 import { parseCsv } from "../lib/csv";
 import { databaseFixture } from "./db-fixture";
 async function main() {
@@ -16,6 +17,13 @@ async function main() {
       const form = new FormData(); form.set("businessId", String(id)); form.set("file", new File([csv], "synthetic.csv"));
       return POST(new NextRequest("http://localhost/api/reviews/import", { method: "POST", body: form }));
     };
+    assert.deepEqual(await selectQuoteCandidates(bid), [], "a draft on a legacy duplicate excludes the canonical review");
+    const enriched = await (await upload('rating,text,reviewed_at,source_url\n5,Existing synthetic review with friendly staff,2026-10-01,https://example.com/retained')).json();
+    assert.deepEqual([enriched.imported, enriched.duplicates], [0, 1]);
+    const canonical = (await client.query("SELECT text,source_url FROM reviews WHERE duplicate_of IS NULL")).rows[0];
+    assert.equal(canonical.source_url, "https://example.com/retained");
+    await upload('rating,text,reviewed_at,source_url\n5,Existing synthetic review with friendly staff,2026-10-01,https://example.com/replaced');
+    assert.equal((await client.query("SELECT source_url FROM reviews WHERE duplicate_of IS NULL")).rows[0].source_url, canonical.source_url);
     const csv = 'rating,text,reviewed_at,author_name,source_review_id,source_url\n5,"A synthetic welcome",2026-10-01,Example,,https://example.com/review\n5,"  a  synthetic WELCOME  ",2026-10-01,example,,\n4.5,invalid,2026-10-01,,,\n5,invalid,2026-02-30,,,\n,,,,,\n';
     const first = await (await upload(csv)).json();
     assert.deepEqual([first.imported, first.duplicates, first.rejectedInvalid, first.skippedEmpty], [1, 1, 2, 1]);
@@ -42,7 +50,7 @@ async function main() {
   }, async (name, client) => {
     if (name !== "006_review_identity.sql") return;
     const id = (await client.query("INSERT INTO businesses(name,timezone) VALUES('Synthetic duplicate fixture','UTC') RETURNING id")).rows[0].id;
-    const reviews = await client.query("INSERT INTO reviews(business_id,source,rating,text,reviewed_at) VALUES($1,'manual',5,'Existing synthetic review','2026-10-01'),($1,'manual',5,'Existing synthetic review','2026-10-01') RETURNING id", [id]);
+    const reviews = await client.query("INSERT INTO reviews(business_id,source,rating,text,reviewed_at) VALUES($1,'manual',5,'Existing synthetic review with friendly staff','2026-10-01'),($1,'manual',5,'Existing synthetic review with friendly staff','2026-10-01') RETURNING id", [id]);
     await client.query("INSERT INTO draft_posts(business_id,review_id,quote_text,caption_text) VALUES($1,$2,'Synthetic','Synthetic')", [id, reviews.rows[1].id]);
   });
   console.log("CSV normalization/migration/concurrent import tests passed");
