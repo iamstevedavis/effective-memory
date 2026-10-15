@@ -75,3 +75,7 @@ Decision log to capture architecture/product calls and why they were made.
 - Date: 2026-10-15
   Decision: BullMQ delivery with a Postgres generation outbox, weekly reservations and renewable claims (#43).
   Why: Transactional business locks enforce quotas alongside draft uniqueness, while BullMQ provides the documented durable queue. An outbox recovers Redis loss without creating replacement drafts. Persisted stages bound redundant paid calls; retries and daily owner counters cap exposure.
+
+- Date: 2026-10-15
+  Decision: Serialize draft edits with revisions, transactional policy and append-only audit events (#44).
+  Why: Every mutation shares ownership/lifecycle checks and a transaction context; stale revisions fail instead of overwriting edits. Approval decodes the persisted PNG. Rendering uses content-addressed filenames so approved artifacts cannot change in place. Chromium browser checks use playwright-core with an explicitly installed browser, never paid providers.

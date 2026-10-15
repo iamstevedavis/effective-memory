@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import sharp, { type OverlayOptions } from "sharp";
 import { quoteOptions, type BrandTone } from "../branding";
 import { draftImageFilename, draftImageUrl, mediaRoot } from "./media";
@@ -66,11 +66,12 @@ export async function renderQuoteCard(params: RenderParams) {
 }
 export async function renderDraftImage(params: RenderParams) {
   const png = await renderQuoteCard(params);
+  const digest = createHash("sha256").update(png).digest("hex").slice(0,20);
   const root = mediaRoot();
   mkdirSync(root, { recursive: true });
-  const outPath = join(root, draftImageFilename(params.draftPostId));
+  const outPath = join(root, draftImageFilename(params.draftPostId, digest));
   const temp = `${outPath}.${randomUUID()}.tmp`;
   writeFileSync(temp, png);
   renameSync(temp, outPath);
-  return { fileSystemPath: outPath, publicPath: draftImageUrl(params.draftPostId) };
+  return { fileSystemPath: outPath, publicPath: draftImageUrl(params.draftPostId, digest) };
 }
