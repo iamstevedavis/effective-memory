@@ -49,7 +49,7 @@ export function ownerRoute(handler: (req: NextRequest, context: any) => Promise<
         const exists = draftId !== undefined ? await query("SELECT 1 FROM draft_posts d JOIN businesses b ON b.id=d.business_id WHERE d.id=$1 AND b.owner_id=$2", [id,owner]) : await query("SELECT 1 FROM businesses WHERE id=$1 AND owner_id=$2", [id,owner]);
         if (!exists.rowCount) return deny(404, "Resource not found");
       } else if (!["/api/businesses", "/api/branding/preview"].includes(path) && !path.startsWith("/api/media/")) return deny(400, "Resource ID required");
-      if (path === "/api/captions/generate" && !await chargeGeneration(owner)) return deny(429, "Daily generation limit reached");
+      if (["/api/captions/generate", "/api/images/render"].includes(path) && !await chargeGeneration(owner)) return deny(429, "Daily generation limit reached");
       if (path === "/api/quotes/select" && !await chargeGeneration(owner, Number(input.limit ?? 5))) return deny(429, "Daily generation limit reached");
       if (path === "/api/branding/preview" && !await chargeGeneration(owner, 1, "preview")) return deny(429, "Preview limit reached");
       const response = await owners.run(owner, () => handler(req, context));

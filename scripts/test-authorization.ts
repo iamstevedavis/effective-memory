@@ -60,6 +60,16 @@ async function main() {
     process.env.OWNER_GENERATION_DAILY_LIMIT = "2";
     const charged = await Promise.all([chargeGeneration(a.id),chargeGeneration(a.id),chargeGeneration(a.id)]);
     assert.equal(charged.filter(Boolean).length,2);
+    let renders = 0;
+    const renderGuard = ownerRoute(async () => { renders++; return new Response("OK"); });
+    // Ownership is checked first; an exhausted owner cannot dispatch even a valid render.
+    await client.query("UPDATE businesses SET owner_id=$1 WHERE id=$2",[a.id,bb]);
+    assert.equal((await renderGuard(request("/api/images/render","POST",{draftPostId:draft}))).status,429);
+    assert.equal(renders,0);
+    await client.query("DELETE FROM owner_usage WHERE owner_id=$1 AND kind='generation'",[a.id]);
+    assert.equal((await renderGuard(request("/api/images/render","POST",{draftPostId:draft}))).status,200);
+    assert.equal(renders,1);
+    await client.query("UPDATE businesses SET owner_id=$1 WHERE id=$2",[b.id,bb]);
     const root = mkdtempSync(join(tmpdir(),"private-media-")); process.env.MEDIA_ROOT = root;
     try {
       writeFileSync(join(root,"draft-777.png"),Buffer.from([137,80,78,71]));
