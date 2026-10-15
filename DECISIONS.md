@@ -83,3 +83,7 @@ Decision log to capture architecture/product calls and why they were made.
 - Date: 2026-10-15
   Decision: Keep #29 blocked until owner Buffer access and a permitted live test are available.
   Why: Official GraphQL/OAuth-PKCE, scheduling/media and rate-limit interfaces are documented in SCHEDULER.md with dated references. No configured account/channel, encryption key or public media origin is available. Retire false stub success and content logging; no alternative provider, scraping or unverified live success is substituted.
+
+- Date: 2026-10-15
+  Decision: Keep Google sync #46 blocked at its access/reuse-policy feasibility gate.
+  Why: Dated official prerequisites, OAuth/review contracts and policy references are captured in GOOGLE.md. No approved project or permitted live location is configured, and temporary storage/manipulation rules need clarification for social reuse before adding a connector. Owner approval cannot substitute for provider access or policy resolution; no scraping/mock success.
