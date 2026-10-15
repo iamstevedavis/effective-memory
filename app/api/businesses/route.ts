@@ -1,3 +1,4 @@
+import { validTimezone } from "../../../lib/timezone";
 import { ownerRoute, currentOwner } from "../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { parseBrandColors, parseLogoUrl, validBrandConfig, type BrandTone } from "../../../lib/branding";
@@ -49,6 +50,8 @@ async function handlePOST(req: NextRequest) {
   }
   const name = String(body?.name ?? "").trim();
   const timezone = String(body?.timezone ?? "America/Toronto").trim();
+
+  if (!validTimezone(timezone)) return NextResponse.json({error:"Use a valid IANA timezone"},{status:400});
 
   const parsedBrandColors =
     body?.brandColors !== undefined

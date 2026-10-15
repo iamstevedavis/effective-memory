@@ -1,3 +1,4 @@
+import { validTimezone } from "../timezone";
 import { randomUUID } from "node:crypto";
 import { query, transaction } from "../db";
 import { chargeGeneration } from "../authorization";
@@ -17,6 +18,7 @@ export async function requestGeneration(businessId: number, limit = 5, now = new
     // Same business lock serializes both quota reservation and review selection.
     const business = (await c.query("SELECT * FROM businesses WHERE id=$1 AND owner_id IS NOT NULL FOR UPDATE",[businessId])).rows[0];
     if (!business) throw new Error("Owned business required");
+    if (!validTimezone(business.timezone)) return { inserted:0, reason:"invalid_timezone", periodStart:null, target:business.weekly_target };
     const week = generationWeek(now,business.timezone);
     await c.query(`INSERT INTO generation_periods(business_id,period_start,timezone,target,allocated,completed)
       SELECT $1,$2,$3,$4,count(*),count(*) FILTER(WHERE caption_text<>'' AND image_path IS NOT NULL)

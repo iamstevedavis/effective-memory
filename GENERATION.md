@@ -33,3 +33,5 @@ retained stages, bounded retries and redaction. No provider key is used. Redis/d
 access needs to remain internal; the public worker has no authentication bypass.
 Rollback: stop the worker before reverting, retain new job/period tables and draft
 reference annotations. Do not run the former unbounded timer-loop worker on live data.
+
+Invalid legacy business timezones produce `invalid_timezone` without reserving jobs; correct the IANA timezone in business settings to resume. Compose always uses the Redis service hostname, independently of host `.env` URLs.

@@ -1,3 +1,6 @@
+import { validTimezone } from "../lib/timezone";
+import { NextRequest } from "next/server";
+import { sessionHash } from "../lib/auth-adapter";
 import assert from "node:assert/strict";
 import { databaseFixture } from "./db-fixture";
 import { generationWeek, requestGeneration, processGeneration, retryGeneration, type GenerationDeps } from "../lib/services/generation";
@@ -5,6 +8,8 @@ async function main() {
   assert.equal(generationWeek(new Date("2026-10-19T03:59:00Z"),"America/New_York"),"2026-10-12");
   assert.equal(generationWeek(new Date("2026-10-19T04:00:00Z"),"America/New_York"),"2026-10-19");
   assert.equal(generationWeek(new Date("2026-10-18T12:00:00Z"),"Pacific/Auckland"),"2026-10-19");
+  assert.equal(validTimezone("America/New_York"),true);
+  assert.equal(validTimezone("Mars/Typo"),false);
   await databaseFixture(async client=>{
     await client.query("INSERT INTO auth_users(id,email) VALUES('generation-owner','generation@example.invalid')");
     const bid = (await client.query("INSERT INTO businesses(name,timezone,owner_id) VALUES('Synthetic generation','America/New_York','generation-owner') RETURNING id")).rows[0].id;
@@ -50,6 +55,16 @@ async function main() {
     assert.equal((await requestGeneration(bid,5,following)).reason,"backlog_full");
     await assert.rejects(client.query("UPDATE businesses SET weekly_target=6 WHERE id=$1",[bid]));
     const empty = (await client.query("INSERT INTO businesses(name,timezone,owner_id) VALUES('Empty synthetic','UTC','generation-owner') RETURNING id")).rows[0].id;
+    assert.equal((await requestGeneration(empty,3,now)).reason,"reviews_exhausted");
+    await client.query("UPDATE businesses SET timezone='Mars/Typo' WHERE id=$1",[empty]);
+    assert.equal((await requestGeneration(empty,3,now)).reason,"invalid_timezone");
+    process.env.NEXTAUTH_URL="http://localhost";
+    await client.query("INSERT INTO auth_sessions VALUES($1,'generation-owner',now()+interval '1 hour')",[sessionHash("generation-zone")]);
+    const req=(path:string,method:string,body:unknown)=>new NextRequest(`http://localhost/api/${path}`,{method,headers:{origin:"http://localhost",cookie:"next-auth.session-token=generation-zone","content-type":"application/json"},body:JSON.stringify(body)});
+    assert.equal((await require("../app/api/businesses/route").POST(req("businesses","POST",{name:"Invalid zone",timezone:"Mars/Typo"}))).status,400);
+    const patch=require("../app/api/businesses/[id]/route").PATCH;
+    assert.equal((await patch(req(`businesses/${empty}`,"PATCH",{timezone:"Mars/Typo"}),{params:Promise.resolve({id:empty})})).status,400);
+    assert.equal((await patch(req(`businesses/${empty}`,"PATCH",{timezone:"UTC"}),{params:Promise.resolve({id:empty})})).status,200);
     assert.equal((await requestGeneration(empty,3,now)).reason,"reviews_exhausted");
     assert.equal(captions,before,"empty and repeated ticks do not call a paid provider");
     assert.equal((await client.query("SELECT completed FROM generation_periods WHERE business_id=$1 ORDER BY period_start LIMIT 1",[bid])).rows[0].completed,2);

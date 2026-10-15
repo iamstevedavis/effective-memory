@@ -16,7 +16,7 @@ type CaptionSet = { friendly: string; premium: string; playful: string };
 export default function QuotesPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [businessId, setBusinessId] = useState("");
-  const [limit, setLimit] = useState(5);
+  const [limit, setLimit] = useState(3);
   const [message, setMessage] = useState("");
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [captionVariantsByDraft, setCaptionVariantsByDraft] = useState<Record<number, CaptionSet>>({});
@@ -132,7 +132,7 @@ export default function QuotesPage() {
         <input
           type="number"
           min={1}
-          max={25}
+          max={5}
           value={limit}
           onChange={(e) => setLimit(Number(e.target.value) || 5)}
           style={{ width: 80, marginLeft: 8 }}

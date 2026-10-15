@@ -1,3 +1,4 @@
+import { validTimezone } from "../../../../lib/timezone";
 import { ownerRoute } from "../../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { parseBrandColors, parseLogoUrl, validBrandConfig, type BrandTone } from "../../../../lib/branding";
@@ -108,6 +109,8 @@ async function handlePATCH(req: NextRequest, context: { params: Promise<{ id: st
     body?.timezone === undefined
       ? current.timezone
       : String(body.timezone ?? "").trim() || current.timezone;
+
+  if (!validTimezone(timezone)) return NextResponse.json({error:"Use a valid IANA timezone"},{status:400});
 
   let brandColors: Record<string, string> = current.brand_colors ?? {};
   if (body?.brandColors !== undefined) {
