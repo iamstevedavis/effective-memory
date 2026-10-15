@@ -16,7 +16,7 @@ Define and maintain the core stack in this section as the source of truth:
 ### Data store(s)
 
 - Postgres (primary datastore)
-- Redis (planned job queue + caching via BullMQ — not yet implemented; the worker is currently a simple timer loop)
+- Redis + BullMQ for generation delivery; Postgres outbox, quotas and renewable claims are authoritative
 - If we later want fewer moving parts, we can consider a Postgres-backed queue, but start with Redis for maturity.
 
 ### Infrastructure / deployment model
@@ -77,7 +77,7 @@ Define and maintain the core stack in this section as the source of truth:
 ├─ PRODUCT.md / ARCHITECTURE.md / DECISIONS.md / WORKFLOW.md
 ├─ app/            # Next.js app (UI pages + API routes)
 ├─ lib/            # shared domain logic (db, services, integrations)
-├─ worker/         # background draft-generation loop entrypoint
+├─ worker/         # durable generation worker entrypoint
 ├─ scripts/        # migrations, db health, scheduling sweep, test suites
 ├─ db/migrations/  # SQL migrations
 └─ Dockerfile.web / Dockerfile.worker / Dockerfile.dev / docker-compose*.yml

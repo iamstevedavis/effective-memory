@@ -1,3 +1,4 @@
+import { validTimezone } from "../../../../lib/timezone";
 import { ownerRoute } from "../../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { parseBrandColors, parseLogoUrl, validBrandConfig, type BrandTone } from "../../../../lib/branding";
@@ -10,6 +11,7 @@ type BusinessRow = {
   brand_colors: Record<string, string> | null;
   logo_url: string | null;
   brand_tone: BrandTone;
+  weekly_target: number;
 };
 
 function normalizeBrandTone(input: unknown): BrandTone {
@@ -34,6 +36,7 @@ async function handlePATCH(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const body = await req.json();
+  if (body.weeklyTarget !== undefined && (!Number.isInteger(body.weeklyTarget) || body.weeklyTarget < 1 || body.weeklyTarget > 5)) return NextResponse.json({error:"Weekly target must be 1–5"},{status:400});
   if (body?.brandColors !== undefined && !validBrandConfig(body.brandColors)) {
     return NextResponse.json({ error: "Invalid brand colors or template options" }, { status: 400 });
   }
@@ -84,7 +87,7 @@ async function handlePATCH(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const existing = await query<BusinessRow>(
-    `SELECT id, name, timezone, brand_colors, logo_url, brand_tone
+    `SELECT id, name, timezone, brand_colors, logo_url, brand_tone, weekly_target
      FROM businesses
      WHERE id = $1
      LIMIT 1`,
@@ -107,6 +110,8 @@ async function handlePATCH(req: NextRequest, context: { params: Promise<{ id: st
       ? current.timezone
       : String(body.timezone ?? "").trim() || current.timezone;
 
+  if (!validTimezone(timezone)) return NextResponse.json({error:"Use a valid IANA timezone"},{status:400});
+
   let brandColors: Record<string, string> = current.brand_colors ?? {};
   if (body?.brandColors !== undefined) {
     brandColors = parseBrandColors(body.brandColors);
@@ -124,10 +129,10 @@ async function handlePATCH(req: NextRequest, context: { params: Promise<{ id: st
          timezone = $3,
          brand_colors = $4::jsonb,
          logo_url = $5,
-         brand_tone = $6
+         brand_tone = $6, weekly_target = $7
      WHERE id = $1
-     RETURNING id, name, timezone, brand_colors, logo_url, brand_tone`,
-    [businessId, name, timezone, JSON.stringify(brandColors), logoUrl, toneCandidate]
+     RETURNING id, name, timezone, brand_colors, logo_url, brand_tone, weekly_target`,
+    [businessId, name, timezone, JSON.stringify(brandColors), logoUrl, toneCandidate, body.weeklyTarget ?? current.weekly_target]
   );
 
   return NextResponse.json({ business: updated.rows[0] });
