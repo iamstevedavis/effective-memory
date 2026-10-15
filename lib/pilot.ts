@@ -46,11 +46,11 @@ export function pilotReport(businesses: PilotBusiness[], authorized: string[], s
     }).sort((a, z) => a.ms - z.ms);
     const inside = events.filter(e => e.ms >= from && e.ms < until);
     const unique = (type: string) => {
-      const rows = inside.filter(e => e.type === type);
+      const rows = events.filter(e => e.type === type);
       if (new Set(rows.map(e => e.id)).size !== rows.length) {
         throw new Error("Duplicate observation ID within event type; reconcile the ledger");
       }
-      return rows;
+      return rows.filter(e => e.ms >= from && e.ms < until);
     };
     const onboarding = events.find(e => e.type === "onboarding_start" && e.ms < until);
     const first = onboarding && events.find(e => e.type === "draft_complete" && e.ms >= onboarding.ms && e.ms < until);

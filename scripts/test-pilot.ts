@@ -60,3 +60,11 @@ assert.deepEqual(pilotReport(example, ["synthetic-demo"], start, end), []);
 const demonstration = pilotReport(example.map(b => ({ ...b, synthetic: false })), ["synthetic-demo"], start, end)[0];
 assert.deepEqual([demonstration.firstDraftMinutes, demonstration.sessions[0].minutes, demonstration.approvedWithoutEditsRate], [4, 12, 1]);
 console.log("pilot metric tests passed (synthetic fixtures only)");
+
+// A repeated transition/receipt cannot become new merely by crossing a report boundary.
+for (const type of ["approved", "scheduled", "published", "session_start", "session_end", "generation_cost"] as const) {
+  for (const outside of ["2026-09-30T23:59:59.999Z", end]) {
+    const repeated: PilotEvent = { type, at: start, id: "repeated", usd: 0.1 };
+    assert.throws(() => report([{ ...business, events: [repeated, { ...repeated, at: outside }] }]), /Duplicate observation/);
+  }
+}
