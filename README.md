@@ -89,7 +89,7 @@ skip honestly and exits 0, so CI stays green without credentials.
 ## Worker
 
 - `npm run worker` — draft generation loop (quote selection → captions → image render) every `DRAFT_PIPELINE_INTERVAL_MS`
-- `npm run worker:schedule` — one-shot scheduling sweep for approved, due drafts (stub adapter)
+- `npm run worker:schedule` — retired; fails closed pending verified provider setup
 
 ## Production deployment notes
 
@@ -99,7 +99,7 @@ skip honestly and exits 0, so CI stays green without credentials.
 
 ## Current limitations
 
-- Scheduler is a stub adapter; no direct social publishing yet
+- Scheduling is blocked pending verified owner/provider setup: [SCHEDULER.md](SCHEDULER.md)
 - Durable weekly worker setup and recovery: [GENERATION.md](GENERATION.md)
 - Manual CSV review import only
 - Owner authentication and operational setup: [AUTH.md](AUTH.md)
@@ -144,3 +144,5 @@ After building, run `TEST_BROWSER=1 TEST_DATABASE_URL=... npx ts-node scripts/te
 with Chromium installed (`CHROMIUM_PATH` defaults to /usr/bin/chromium). Uses synthetic
 sessions and fixtures only, with no external AI/social calls. Rollback requires
 stopping writes first; retain audit events, revision columns, and immutable media.
+
+Real publishing is not configured: [Buffer feasibility and exact setup blockers](SCHEDULER.md). The legacy scheduling CLI fails closed.
