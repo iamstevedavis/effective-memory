@@ -197,7 +197,7 @@ export default function ApprovalPage() {
       ) : null}
 
       <button onClick={approveSelected} disabled={!Object.values(selected).some(Boolean)}>Approve selected</button>
-      <PostingSlots businessId={businessId} />
+      <PostingSlots key={businessId} businessId={businessId} />
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 16 }}>
         <div>
           <h2>Draft</h2>

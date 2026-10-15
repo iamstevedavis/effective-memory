@@ -54,7 +54,7 @@ export async function assignSlots(owner:string,businessId:number,items:{draftPos
       try{receipt=await submit(payload);}
       catch(e){if(e instanceof SchedulerUnavailable){await transaction(c=>c.query("DELETE FROM posting_slot_claims WHERE draft_id=$1 AND state='pending'",[item.draftPostId]));return fail("Buffer connection not configured/verified; no post submitted",503);}
         await transaction(c=>c.query("UPDATE posting_slot_claims SET state='unknown' WHERE draft_id=$1",[item.draftPostId])).catch(()=>{});return fail("Provider outcome unknown; resolve before retrying");}
-      if(receipt.provider!=="buffer"||!receipt.confirmed||!receipt.externalId){await transaction(c=>c.query("UPDATE posting_slot_claims SET state='unknown' WHERE draft_id=$1",[item.draftPostId]));return fail("No verified provider acceptance; inspect before retrying");}
+      if(receipt.provider!=="buffer"||!receipt.confirmed||receipt.status!=="scheduled"||!receipt.externalId){await transaction(c=>c.query("UPDATE posting_slot_claims SET state='unknown' WHERE draft_id=$1",[item.draftPostId]));return fail("No verified provider acceptance; inspect before retrying");}
       try{return await transaction(async c=>{
         await c.query("SELECT set_config('app.actor_id',$1,true),set_config('app.action','assign_slot',true),set_config('app.reason','provider_confirmed',true)",[owner]);
         const claimed=await c.query("UPDATE posting_slot_claims SET state='confirmed',external_id=$2 WHERE draft_id=$1 AND state='pending'",[item.draftPostId,receipt.externalId]);

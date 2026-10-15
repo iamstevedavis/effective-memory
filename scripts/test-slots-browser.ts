@@ -14,6 +14,7 @@ async function main(){
     await c.query("INSERT INTO auth_users(id,email) VALUES('slots-browser','slots-browser@example.invalid')");
     await c.query("INSERT INTO auth_sessions VALUES($1,'slots-browser',now()+interval '1 hour')",[sessionHash("slots-browser-session")]);
     const bid=(await c.query("INSERT INTO businesses(name,timezone,owner_id) VALUES('Synthetic slots browser','America/New_York','slots-browser') RETURNING id")).rows[0].id;
+    const other=(await c.query("INSERT INTO businesses(name,timezone,owner_id) VALUES('Other synthetic slots','UTC','slots-browser') RETURNING id")).rows[0].id;
     writeFileSync(join(root,"fixture.png"),await sharp({create:{width:1080,height:1080,channels:3,background:"#123456"}}).png().toBuffer());
     const id=(await c.query("INSERT INTO draft_posts(business_id,quote_text,caption_text,image_path,status) VALUES($1,'Synthetic slot quote','Synthetic caption','/api/media/fixture.png','approved') RETURNING id",[bid])).rows[0].id;
     await webFixture(async base=>{
@@ -29,6 +30,21 @@ async function main(){
         const assign=page.waitForResponse(r=>r.url().endsWith("/api/posting-slots/assign"));await page.getByRole("button",{name:"Confirm selected posting slots"}).click();
         const data=await (await assign).json();assert.equal(data.results[0].status,503);await page.getByText(/Buffer connection not configured\/verified/).waitFor();
         await page.reload();await page.getByRole("combobox").selectOption(String(bid));await page.getByLabel("Tue local time").waitFor();assert.equal(await page.getByLabel("Tue local time").inputValue(),"11:15");
+        // Hold a previous business response until a new business has loaded.
+        let release!:()=>void,started!:()=>void;
+        const held=new Promise<void>(resolve=>{release=resolve;}),seen=new Promise<void>(resolve=>{started=resolve;});
+        await page.route(`**/api/posting-slots?businessId=${bid}`,async route=>{const response=await route.fetch();started();await held;await route.fulfill({response});});
+        await page.getByRole("combobox").selectOption(String(other));
+        await page.getByLabel("Tue local time").waitFor();
+        await page.getByRole("combobox").selectOption(String(bid));await seen;
+        await page.getByRole("combobox").selectOption(String(other));
+        await page.getByLabel("Tue local time").waitFor();
+        const stale=page.waitForResponse(r=>r.url().endsWith(`/api/posting-slots?businessId=${bid}`));release();await stale;
+        await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+        assert.equal(await page.getByLabel("Tue local time").inputValue(),"10:00");
+        const otherSave=page.waitForResponse(r=>r.url().endsWith("/api/posting-slots")&&r.request().method()==="PATCH");
+        await page.getByRole("button",{name:"Save posting schedule"}).click();assert.equal((await otherSave).status(),200);
+        assert.equal((await c.query("SELECT posting_slots FROM businesses WHERE id=$1",[other])).rows[0].posting_slots.find((s:{weekday:number})=>s.weekday===2).time,"10:00");
         await context.close();
       }finally{await browser.close();}
     });

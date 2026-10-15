@@ -43,6 +43,11 @@ async function main(){
     try{assert.equal((await assignSlots("slot-owner",bid,[{draftPostId:late,version:0,instant:future[2]}],async()=>{accepted=true;return submit();}))[0].status,502);}finally{db.transaction=original;}
     assert.equal((await c.query("SELECT state FROM posting_slot_claims WHERE draft_id=$1",[late])).rows[0].state,"pending");
     assert.equal((await assignSlots("slot-owner",bid,[{draftPostId:late,version:0,instant:future[2]}],submit))[0].status,409,"accepted-but-uncommitted outcome cannot resubmit");
+    const simulated=await draft();
+    assert.equal((await assignSlots("slot-owner",bid,[{draftPostId:simulated,version:0,instant:future[3]}],async()=>({provider:"buffer",confirmed:true,status:"simulated",externalId:"must-not-confirm"})))[0].status,502);
+    assert.equal((await c.query("SELECT status FROM draft_posts WHERE id=$1",[simulated])).rows[0].status,"approved");
+    assert.equal((await c.query("SELECT state FROM posting_slot_claims WHERE draft_id=$1",[simulated])).rows[0].state,"unknown");
+    assert.equal((await c.query("SELECT count(*) FROM draft_posts WHERE status='scheduled'")).rows[0].count,"1");
     const confirmed=(await c.query("SELECT scheduled_for FROM draft_posts WHERE status='scheduled'")).rows[0].scheduled_for;
     await c.query("UPDATE businesses SET timezone='America/New_York' WHERE id=$1",[bid]);
     assert.equal((await c.query("SELECT scheduled_for FROM draft_posts WHERE status='scheduled'")).rows[0].scheduled_for.toISOString(),confirmed.toISOString());
