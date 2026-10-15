@@ -44,6 +44,7 @@ type DraftPipelineDeps = {
     brandHex?: string | null;
     secondaryBrandHex?: string | null;
     logoUrl?: string | null;
+    brandTone?: BrandTone;
   }) => Promise<{ publicPath: string }>;
   updateDraftImagePath: (draftPostId: number, imagePath: string) => Promise<void>;
   markDraftFailed: (draftPostId: number, reason: string) => Promise<void>;
@@ -84,7 +85,8 @@ export function createDraftGenerationRunner(deps: DraftPipelineDeps) {
             quoteText: candidate.quoteText,
             brandHex,
             secondaryBrandHex,
-            logoUrl: business.logo_url
+            logoUrl: business.logo_url,
+            brandTone: business.brand_tone
           });
 
           await deps.updateDraftImagePath(candidate.draftPostId, rendered.publicPath);

@@ -103,3 +103,11 @@ skip honestly and exits 0, so CI stays green without credentials.
 - Redis is provisioned but unused (queue work is planned, see `DECISIONS.md`)
 - Manual CSV review import only
 - No authentication/authorization yet
+
+Quote-card rendering uses Sharp/Pango measured wrapping (DejaVu Sans/Serif), a
+1080px canvas, 80px safe margins, and automatic black/white contrast. Names fit
+within 160px and quotes within 650px at 32–48px; unfit text is rejected verbatim,
+never truncated. Supply optional logos as PNG/JPEG/WebP base64 data URLs (256 KB,
+4 MP maximum); remote URLs/SVG/animation are rejected without network requests.
+Manual and worker generation use the same tone/colors/logo. Regenerate explicitly
+after brand changes. `IMAGE_EVIDENCE_DIR=/tmp/evidence npm test` saves synthetic PNGs.
