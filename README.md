@@ -133,3 +133,14 @@ duplicate, empty, invalid and storage-failed rows, with at most 20 redacted erro
 Ownership enforcement is supplied by #42 before any customer exposure.
 
 Before customer access, configure owner login and explicitly claim any legacy data as described in [AUTH.md](AUTH.md).
+
+Approval supports inline caption edits, per-item bulk approval, archive, and persisted
+job retries. Every draft mutation requires its current `version`; refresh on 409.
+Approval requires nonempty caption and a decoded, available 1080px PNG. Edits and
+regeneration clear approval; scheduled/published items require provider operations.
+Migration 009 adds archived status, revisions and append-only actor/time/reason events.
+Generated PNGs now use immutable content hashes; historical images remain compatible.
+After building, run `TEST_BROWSER=1 TEST_DATABASE_URL=... npx ts-node scripts/test-approval-browser.ts`
+with Chromium installed (`CHROMIUM_PATH` defaults to /usr/bin/chromium). Uses synthetic
+sessions and fixtures only, with no external AI/social calls. Rollback requires
+stopping writes first; retain audit events, revision columns, and immutable media.

@@ -96,14 +96,16 @@ async function main() {
     assert.deepEqual(updatedCaptions, [
       { id: 101, caption: "An elevated evening, made memorable at Cafe Nova." }
     ]);
-    assert.deepEqual(updatedImages, [{ id: 101, imagePath: "/api/media/draft-101.png" }]);
+    assert.equal(updatedImages[0].id, 101);
+    assert.match(updatedImages[0].imagePath, /^\/api\/media\/draft-101-[a-f0-9]{20}\.png$/);
+    const filename = updatedImages[0].imagePath.split("/").pop()!;
 
-    const renderedPath = join(mediaDir, "draft-101.png");
+    const renderedPath = join(mediaDir, filename);
     assert.ok(existsSync(renderedPath), "rendered image must persist to the media root");
 
     const mediaRoute = require("../app/api/media/[name]/route");
 
-    const okRes = await mediaRoute.GET(null, { params: Promise.resolve({ name: "draft-101.png" }) });
+    const okRes = await mediaRoute.GET(null, { params: Promise.resolve({ name: filename }) });
     assert.equal(okRes.status, 200);
     assert.equal(okRes.headers.get("content-type"), "image/png");
     const body = new Uint8Array(await okRes.arrayBuffer());

@@ -1,3 +1,5 @@
+const lifecycle = require("../lib/services/draftLifecycle");
+lifecycle.draftMutation = (_action: string, handler: unknown) => handler;
 // Domain regressions bypass the boundary; test-authorization exercises real guards.
 const boundary = require("../lib/authorization");
 boundary.ownerRoute = (handler: unknown) => handler;

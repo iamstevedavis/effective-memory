@@ -28,9 +28,9 @@ async function main() {
     await assert.rejects(renderDraftImage({ ...base, brandHex: "red" }), /hexadecimal/);
     // Optional review evidence persists outside source control.
     if (process.env.IMAGE_EVIDENCE_DIR) {
-      const { mkdirSync, copyFileSync } = await import("node:fs");
+      const { mkdirSync, copyFileSync, readdirSync } = await import("node:fs");
       mkdirSync(process.env.IMAGE_EVIDENCE_DIR, { recursive: true });
-      for (const id of [901, 902, 903]) copyFileSync(join(root, `draft-${id}.png`), join(process.env.IMAGE_EVIDENCE_DIR, `synthetic-${id}.png`));
+      for (const id of [901, 902, 903]) copyFileSync(join(root, readdirSync(root).find(n => n.startsWith(`draft-${id}-`))!), join(process.env.IMAGE_EVIDENCE_DIR, `synthetic-${id}.png`));
     }
     console.log("real raster layout/logo/overflow tests passed");
   } finally { rmSync(root, { recursive: true, force: true }); }

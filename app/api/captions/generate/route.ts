@@ -1,3 +1,4 @@
+import { draftMutation } from "../../../../lib/services/draftLifecycle";
 import { ownerRoute } from "../../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "../../../../lib/db";
@@ -46,4 +47,4 @@ async function handlePOST(req: NextRequest) {
   }
 }
 
-export const POST = ownerRoute(handlePOST);
+export const POST = ownerRoute(draftMutation("captions", handlePOST));
