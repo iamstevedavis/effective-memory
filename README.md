@@ -111,3 +111,5 @@ never truncated. Supply optional logos as PNG/JPEG/WebP base64 data URLs (256 KB
 4 MP maximum); remote URLs/SVG/animation are rejected without network requests.
 Manual and worker generation use the same tone/colors/logo. Regenerate explicitly
 after brand changes. `IMAGE_EVIDENCE_DIR=/tmp/evidence npm test` saves synthetic PNGs.
+
+Quote rendering uses DejaVu with Noto core/CJK fallback fonts in both runtime images, including for Chinese, Japanese, Korean and other supported Unicode scripts. Host installations must install the same font packages before rendering.
