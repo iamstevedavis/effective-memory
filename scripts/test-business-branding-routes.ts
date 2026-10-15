@@ -43,7 +43,7 @@ async function postNormalizesToneAndColorsTest() {
   assert.equal(capturedParams[4], "friendly", "invalid tone should fall back to friendly");
   assert.deepEqual(JSON.parse(String(capturedParams[2])), {
     primary: "#1f2937",
-    secondary: "#123456"
+    secondary: "#123456", template: "quote-card-v1", quoteSize: "standard"
   });
 }
 

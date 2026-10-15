@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseBrandColors, parseLogoUrl, type BrandTone } from "../../../../lib/branding";
+import { parseBrandColors, parseLogoUrl, validBrandConfig, type BrandTone } from "../../../../lib/branding";
 import { query } from "../../../../lib/db";
 
 type BusinessRow = {
@@ -33,6 +33,9 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   }
 
   const body = await req.json();
+  if (body?.brandColors !== undefined && !validBrandConfig(body.brandColors)) {
+    return NextResponse.json({ error: "Invalid brand colors or template options" }, { status: 400 });
+  }
 
   const hasLegacyColorFields = body?.primaryColor !== undefined || body?.secondaryColor !== undefined;
   const hasExtendedFields =
@@ -60,7 +63,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     }>(
       `UPDATE businesses
        SET logo_url = $2,
-           brand_colors = $3::jsonb,
+           brand_colors = brand_colors || $3::jsonb,
            brand_tone = $4
        WHERE id = $1
        RETURNING id, name, logo_url, brand_tone, brand_colors`,

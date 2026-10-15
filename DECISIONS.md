@@ -59,3 +59,7 @@ Decision log to capture architecture/product calls and why they were made.
 - Date: 2026-10-15
   Decision: Render quote cards with Sharp's Pango text backend and DejaVu fonts (#8).
   Why: Actual glyph rasterization and measured wrapping replace unsupported SVG foreignObject layout. Runtime containers install the same font family; bounded embedded raster logos eliminate remote fetching and its SSRF risk. No text is silently shortened.
+
+- Date: 2026-10-15
+  Decision: Store quote-card-v1 options alongside existing brand colors (#26).
+  Why: One typed template and two text sizes need no template framework. The sample preview uses the production renderer without persisting draft assets; default migration preserves colors and existing generated images.

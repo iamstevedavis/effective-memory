@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseBrandColors, parseLogoUrl, type BrandTone } from "../../../lib/branding";
+import { parseBrandColors, parseLogoUrl, validBrandConfig, type BrandTone } from "../../../lib/branding";
 import { query } from "../../../lib/db";
 
 function normalizeBrandTone(input: unknown): BrandTone {
@@ -30,7 +30,9 @@ export async function GET() {
     brand_tone: row.brand_tone,
     brand_colors: {
       primary: row.brand_colors?.primary ?? "#1f2937",
-      secondary: row.brand_colors?.secondary ?? "#374151"
+      secondary: row.brand_colors?.secondary ?? "#374151",
+      template: row.brand_colors?.template ?? "quote-card-v1",
+      quoteSize: row.brand_colors?.quoteSize ?? "standard"
     }
   }));
 
@@ -39,6 +41,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
+  if (body?.brandColors !== undefined && !validBrandConfig(body.brandColors)) {
+    return NextResponse.json({ error: "Invalid brand colors or template options" }, { status: 400 });
+  }
   const name = String(body?.name ?? "").trim();
   const timezone = String(body?.timezone ?? "America/Toronto").trim();
 
@@ -52,7 +57,8 @@ export async function POST(req: NextRequest) {
 
   const brandColors = {
     primary: parsedBrandColors.primary ?? "#1f2937",
-    secondary: parsedBrandColors.secondary ?? "#374151"
+    secondary: parsedBrandColors.secondary ?? "#374151",
+    template: parsedBrandColors.template, quoteSize: parsedBrandColors.quoteSize
   };
 
   const logoUrl = parseLogoUrl(body?.logoUrl);
