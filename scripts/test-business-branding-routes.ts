@@ -1,3 +1,9 @@
+const lifecycle = require("../lib/services/draftLifecycle");
+lifecycle.draftMutation = (_action: string, handler: unknown) => handler;
+// Domain regressions bypass the boundary; test-authorization exercises real guards.
+const boundary = require("../lib/authorization");
+boundary.ownerRoute = (handler: unknown) => handler;
+boundary.currentOwner = () => "synthetic-owner";
 import assert from "node:assert/strict";
 
 const dbModule = require("../lib/db");
@@ -43,7 +49,7 @@ async function postNormalizesToneAndColorsTest() {
   assert.equal(capturedParams[4], "friendly", "invalid tone should fall back to friendly");
   assert.deepEqual(JSON.parse(String(capturedParams[2])), {
     primary: "#1f2937",
-    secondary: "#123456"
+    secondary: "#123456", template: "quote-card-v1", quoteSize: "standard"
   });
 }
 

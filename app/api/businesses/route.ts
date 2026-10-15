@@ -1,5 +1,7 @@
+import { validTimezone } from "../../../lib/timezone";
+import { ownerRoute, currentOwner } from "../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
-import { parseBrandColors, parseLogoUrl, type BrandTone } from "../../../lib/branding";
+import { parseBrandColors, parseLogoUrl, validBrandConfig, type BrandTone } from "../../../lib/branding";
 import { query } from "../../../lib/db";
 
 function normalizeBrandTone(input: unknown): BrandTone {
@@ -8,7 +10,7 @@ function normalizeBrandTone(input: unknown): BrandTone {
   return "friendly";
 }
 
-export async function GET() {
+async function handleGET() {
   const result = await query<{
     id: number;
     name: string;
@@ -16,10 +18,11 @@ export async function GET() {
     brand_colors: Record<string, string> | null;
     logo_url: string | null;
     brand_tone: BrandTone;
+    weekly_target: number;
   }>(
-    `SELECT id, name, timezone, brand_colors, logo_url, brand_tone
-     FROM businesses
-     ORDER BY id ASC`
+    `SELECT id, name, timezone, brand_colors, logo_url, brand_tone, weekly_target
+     FROM businesses WHERE owner_id=$1
+     ORDER BY id ASC`, [currentOwner()]
   );
 
   const businesses = result.rows.map((row) => ({
@@ -28,19 +31,27 @@ export async function GET() {
     timezone: row.timezone,
     logo_url: row.logo_url,
     brand_tone: row.brand_tone,
+    weekly_target: row.weekly_target,
     brand_colors: {
       primary: row.brand_colors?.primary ?? "#1f2937",
-      secondary: row.brand_colors?.secondary ?? "#374151"
+      secondary: row.brand_colors?.secondary ?? "#374151",
+      template: row.brand_colors?.template ?? "quote-card-v1",
+      quoteSize: row.brand_colors?.quoteSize ?? "standard"
     }
   }));
 
   return NextResponse.json({ businesses });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const body = await req.json();
+  if (body?.brandColors !== undefined && !validBrandConfig(body.brandColors)) {
+    return NextResponse.json({ error: "Invalid brand colors or template options" }, { status: 400 });
+  }
   const name = String(body?.name ?? "").trim();
   const timezone = String(body?.timezone ?? "America/Toronto").trim();
+
+  if (!validTimezone(timezone)) return NextResponse.json({error:"Use a valid IANA timezone"},{status:400});
 
   const parsedBrandColors =
     body?.brandColors !== undefined
@@ -52,7 +63,8 @@ export async function POST(req: NextRequest) {
 
   const brandColors = {
     primary: parsedBrandColors.primary ?? "#1f2937",
-    secondary: parsedBrandColors.secondary ?? "#374151"
+    secondary: parsedBrandColors.secondary ?? "#374151",
+    template: parsedBrandColors.template, quoteSize: parsedBrandColors.quoteSize
   };
 
   const logoUrl = parseLogoUrl(body?.logoUrl);
@@ -69,12 +81,16 @@ export async function POST(req: NextRequest) {
     brand_colors: Record<string, string> | null;
     logo_url: string | null;
     brand_tone: BrandTone;
+    weekly_target: number;
   }>(
-    `INSERT INTO businesses (name, timezone, brand_colors, logo_url, brand_tone)
-     VALUES ($1, $2, $3::jsonb, $4, $5)
+    `INSERT INTO businesses (name, timezone, brand_colors, logo_url, brand_tone, owner_id)
+     VALUES ($1, $2, $3::jsonb, $4, $5, $6)
      RETURNING id, name, timezone, brand_colors, logo_url, brand_tone`,
-    [name, timezone, JSON.stringify(brandColors), logoUrl, brandTone]
+    [name, timezone, JSON.stringify(brandColors), logoUrl, brandTone, currentOwner()]
   );
 
   return NextResponse.json({ business: result.rows[0] }, { status: 201 });
 }
+
+export const GET = ownerRoute(handleGET);
+export const POST = ownerRoute(handlePOST);

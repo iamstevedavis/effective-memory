@@ -6,6 +6,13 @@ type CaptionStyles = {
   playful: string;
 };
 
+const DEFAULT_TIMEOUT_MS = 20_000;
+
+function timeoutMs(): number {
+  const raw = Number(process.env.OPENAI_TIMEOUT_MS);
+  return Number.isFinite(raw) && raw > 0 ? Math.min(raw, 30000) : DEFAULT_TIMEOUT_MS;
+}
+
 function countHashtags(text: string): number {
   return (text.match(/(^|\s)#\w+/g) ?? []).length;
 }
@@ -25,6 +32,77 @@ function sanitizeCaption(text: string): string {
   });
 
   return limited.join(" ").trim();
+}
+
+// The raw OpenAI Responses HTTP API does NOT return the SDK convenience
+// `output_text` field. Text lives in `output[]` items of type "message",
+// each with a `content[]` array of `{ type: "output_text", text }` parts.
+// Decode that shape with runtime validation instead of assuming the SDK form.
+function extractOutputText(data: unknown): string {
+  if (!data || typeof data !== "object") {
+    throw new Error("Caption provider returned a non-object response");
+  }
+  const output = (data as { output?: unknown }).output;
+  if (!Array.isArray(output)) {
+    throw new Error("Caption provider response is missing the output array");
+  }
+
+  const parts: string[] = [];
+  for (const item of output) {
+    if (!item || typeof item !== "object") continue;
+    const message = item as { type?: unknown; content?: unknown };
+    if (message.type !== "message" || !Array.isArray(message.content)) continue;
+    for (const part of message.content) {
+      if (!part || typeof part !== "object") continue;
+      const contentPart = part as { type?: unknown; text?: unknown };
+      if (contentPart.type === "output_text" && typeof contentPart.text === "string") {
+        parts.push(contentPart.text);
+      }
+    }
+  }
+
+  const text = parts.join("").trim();
+  if (!text) {
+    throw new Error("Caption provider returned no text content");
+  }
+  return text;
+}
+
+function extractCaptionJson(raw: string): Record<string, unknown> {
+  const trimmed = raw.trim();
+  const fenced = trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+
+  for (const candidate of [fenced, trimmed]) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === "object") return parsed as Record<string, unknown>;
+    } catch {
+      // fall through to regex extraction
+    }
+  }
+
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (match) {
+    return JSON.parse(match[0]) as Record<string, unknown>;
+  }
+  throw new Error("Caption provider response did not contain valid JSON");
+}
+
+function parseCaptionStyles(raw: string): CaptionStyles {
+  const parsed = extractCaptionJson(raw);
+  const variants = {
+    friendly: sanitizeCaption(String(parsed.friendly ?? "").trim()),
+    premium: sanitizeCaption(String(parsed.premium ?? "").trim()),
+    playful: sanitizeCaption(String(parsed.playful ?? "").trim())
+  };
+
+  for (const [style, text] of Object.entries(variants)) {
+    if (!text) throw new Error(`Caption missing for style: ${style}`);
+    if (text.length > 200) throw new Error(`Caption too long for style: ${style}`);
+    if (countHashtags(text) > 5) throw new Error(`Too many hashtags for style: ${style}`);
+  }
+
+  return variants;
 }
 
 export async function generateCaptionVariants(params: {
@@ -54,49 +132,46 @@ Rules:
 - no markdown, no extra keys
 - lean the ${requestedTone} caption closest to the preferred tone`;
 
-  const res = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      input: prompt,
-      max_output_tokens: 400
-    })
-  });
+  const timeout = timeoutMs();
+
+  let res: Response;
+  try {
+    res = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        input: prompt,
+        max_output_tokens: 400
+      }),
+      signal: AbortSignal.timeout(timeout)
+    });
+  } catch (err) {
+    const name = err instanceof Error ? err.name : "";
+    if (name === "AbortError" || name === "TimeoutError") {
+      throw new Error(`Caption provider timed out after ${timeout}ms`);
+    }
+    throw new Error(`Caption provider network error: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`OpenAI request failed: ${res.status} ${text.slice(0, 300)}`);
+    // Do not echo the response body: provider errors can echo request content.
+    let code: string | null = null;
+    try {
+      const errBody = (await res.json()) as { error?: { code?: unknown } };
+      code = typeof errBody?.error?.code === "string" ? errBody.error.code : null;
+    } catch {
+      // non-JSON error body; status + code below are still actionable
+    }
+    throw new Error(
+      `Caption provider returned HTTP ${res.status}${code ? ` (${code})` : ""}. ` +
+      "Check status.openai.com for outages and retry with bounded backoff."
+    );
   }
 
-  const data = (await res.json()) as {
-    output_text?: string;
-  };
-
-  const raw = data.output_text ?? "";
-  let parsed: Partial<CaptionStyles> = {};
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("Failed to parse OpenAI caption JSON");
-    parsed = JSON.parse(match[0]);
-  }
-
-  const friendly = sanitizeCaption(String(parsed.friendly ?? "").trim());
-  const premium = sanitizeCaption(String(parsed.premium ?? "").trim());
-  const playful = sanitizeCaption(String(parsed.playful ?? "").trim());
-
-  const variants = { friendly, premium, playful };
-
-  for (const [style, text] of Object.entries(variants)) {
-    if (!text) throw new Error(`Caption missing for style: ${style}`);
-    if (text.length > 200) throw new Error(`Caption too long for style: ${style}`);
-    if (countHashtags(text) > 5) throw new Error(`Too many hashtags for style: ${style}`);
-  }
-
-  return variants;
+  const data = await res.json();
+  return parseCaptionStyles(extractOutputText(data));
 }

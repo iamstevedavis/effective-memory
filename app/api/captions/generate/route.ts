@@ -1,9 +1,11 @@
+import { draftMutation } from "../../../../lib/services/draftLifecycle";
+import { ownerRoute } from "../../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "../../../../lib/db";
 import type { BrandTone } from "../../../../lib/branding";
 import { generateCaptionVariants } from "../../../../lib/services/captions";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const body = await req.json();
     const draftPostId = Number(body?.draftPostId);
@@ -44,3 +46,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "caption generation failed" }, { status: 500 });
   }
 }
+
+export const POST = ownerRoute(draftMutation("captions", handlePOST));

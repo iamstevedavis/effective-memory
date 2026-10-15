@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 
 type Business = { id: number; name: string };
 type Draft = {
-  id: number;
+  id: number; version: number;
+  rating?: number; author_name?: string; reviewed_at?: string; source?: string; source_url?: string;
+  job_state?: string; error_code?: string;
   review_id: number | null;
   quote_text: string;
   caption_text: string;
@@ -26,12 +28,15 @@ function formatScheduledTime(value?: string | null) {
   return parsed.toLocaleString();
 }
 
-function PostPreview({ draft, scheduledPreview }: { draft: Draft; scheduledPreview?: string | null }) {
+function PostPreview({ draft, scheduledPreview, onChanged }: { draft: Draft; scheduledPreview?: string | null; onChanged?: () => void }) {
   const hashtags = extractHashtags(draft.caption_text);
   const scheduledTime = scheduledPreview || draft.scheduled_for;
 
   return (
     <div style={{ marginTop: 8, padding: 10, border: "1px solid #ddd", borderRadius: 6, background: "#fafafa" }}>
+      <p>Source: {draft.source ?? "unavailable"} · {draft.rating ?? "?"}★ · {draft.author_name ?? "Anonymous"} · {draft.reviewed_at ? new Date(draft.reviewed_at).toLocaleDateString() : "Date unknown"}</p>
+      {draft.source_url ? <a href={draft.source_url} target="_blank" rel="noreferrer">Original review</a> : null}
+      <DraftControls draft={draft} onChanged={onChanged} />
       <div style={{ marginBottom: 8 }}>
         <strong>Image:</strong>
         {draft.image_path ? (
@@ -62,10 +67,27 @@ function PostPreview({ draft, scheduledPreview }: { draft: Draft; scheduledPrevi
   );
 }
 
+function DraftControls({draft,onChanged}:{draft:Draft;onChanged?:()=>void}) {
+  const [caption,setCaption]=useState(draft.caption_text),[error,setError]=useState("");
+  useEffect(()=>setCaption(draft.caption_text),[draft.caption_text]);
+  async function run(path:string,extra:Record<string,unknown>={}) {
+    const response=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({draftPostId:draft.id,version:draft.version,...extra})});
+    const data=await response.json();setError(response.ok ? data.message ?? "Saved" : data.error ?? "Action failed");onChanged?.();
+  }
+  if(["scheduled","published","archived"].includes(draft.status))return null;
+  return <div><label>Caption for draft {draft.id}<textarea maxLength={200} value={caption} onChange={e=>setCaption(e.target.value)}/></label>
+    <button onClick={()=>run("/api/drafts/caption",{captionText:caption})}>Save caption</button>
+    <button onClick={()=>run("/api/drafts/status",{status:"archived"})}>Archive</button>
+    <button onClick={()=>run("/api/generation/regenerate")}>Regenerate</button>
+    {draft.status==="failed" ? <button onClick={()=>run("/api/generation/retry")}>Retry failed job</button> : null}
+    <p>Generation: {draft.job_state ?? "not queued"} {draft.error_code ?? ""}</p>{error?<p role="status">{error}</p>:null}</div>;
+}
+
 export default function ApprovalPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [businessId, setBusinessId] = useState("");
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [selected,setSelected]=useState<Record<number,boolean>>({});
   const [message, setMessage] = useState("");
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [scheduledForByDraft, setScheduledForByDraft] = useState<Record<number, string>>({});
@@ -91,11 +113,14 @@ export default function ApprovalPage() {
     loadDrafts(businessId);
   }, [businessId]);
 
+  useEffect(()=>{if(!businessId)return;const timer=setInterval(()=>void loadDrafts(businessId),3000);return ()=>clearInterval(timer);},[businessId]);
+
   const byStatus = useMemo(() => {
     return {
       draft: drafts.filter((d) => d.status === "draft"),
       approved: drafts.filter((d) => d.status === "approved"),
-      scheduled: drafts.filter((d) => d.status === "scheduled")
+      scheduled: drafts.filter((d) => ["scheduled","published"].includes(d.status)),
+      failed: drafts.filter(d=>d.status==="failed")
     };
   }, [drafts]);
 
@@ -104,7 +129,7 @@ export default function ApprovalPage() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        draftPostId,
+        draftPostId, version: drafts.find(d=>d.id===draftPostId)?.version,
         status,
         auditNote: notes[draftPostId] ?? ""
       })
@@ -130,7 +155,7 @@ export default function ApprovalPage() {
     const res = await fetch("/api/drafts/schedule", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ draftPostId, scheduledFor: iso })
+      body: JSON.stringify({ draftPostId, version: drafts.find(d=>d.id===draftPostId)?.version, scheduledFor: iso })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -142,6 +167,12 @@ export default function ApprovalPage() {
     await loadDrafts(businessId);
   }
 
+  async function approveSelected() {
+    const items=drafts.filter(d=>selected[d.id]).map(d=>({draftPostId:d.id,version:d.version}));
+    const response=await fetch("/api/drafts/bulk",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({items})});
+    const data=await response.json();setMessage(data.results ? data.results.map((r:{draftPostId:number;status:number;error?:string})=>`#${r.draftPostId}: ${r.status===200?"approved":r.error??"failed"}`).join("; ") : data.error);
+    setSelected({});await loadDrafts(businessId);
+  }
   return (
     <main style={{ fontFamily: "sans-serif", padding: 24, maxWidth: 1100 }}>
       <h1>Draft approval queue</h1>
@@ -163,7 +194,8 @@ export default function ApprovalPage() {
         </p>
       ) : null}
 
-      <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+      <button onClick={approveSelected} disabled={!Object.values(selected).some(Boolean)}>Approve selected</button>
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 16 }}>
         <div>
           <h2>Draft</h2>
           <ul>
@@ -172,6 +204,7 @@ export default function ApprovalPage() {
                 <div>
                   #{d.id} {d.quote_text}
                 </div>
+                <label><input type="checkbox" aria-label={`Select draft ${d.id}`} checked={!!selected[d.id]} onChange={e=>setSelected({...selected,[d.id]:e.target.checked})}/>Select</label>
                 <input
                   placeholder="audit note (optional)"
                   value={notes[d.id] ?? ""}
@@ -183,7 +216,7 @@ export default function ApprovalPage() {
                     Approve
                   </button>
                 </div>
-                <PostPreview draft={d} />
+                <PostPreview draft={d} onChanged={()=>loadDrafts(businessId)} />
               </li>
             ))}
           </ul>
@@ -191,6 +224,7 @@ export default function ApprovalPage() {
 
         <div>
           <h2>Approved</h2>
+          <p>Scheduling requires a verified Buffer connection. No post is submitted until the integration is configured.</p>
           <ul>
             {byStatus.approved.map((d) => (
               <li key={d.id} style={{ marginBottom: 14 }}>
@@ -213,7 +247,7 @@ export default function ApprovalPage() {
                     Send back to draft
                   </button>
                 </div>
-                <PostPreview draft={d} scheduledPreview={scheduledForByDraft[d.id]} />
+                <PostPreview draft={d} onChanged={()=>loadDrafts(businessId)} scheduledPreview={scheduledForByDraft[d.id]} />
               </li>
             ))}
           </ul>
@@ -227,11 +261,12 @@ export default function ApprovalPage() {
                 <div>
                   #{d.id} {d.quote_text}
                 </div>
-                <PostPreview draft={d} />
+                <PostPreview draft={d} onChanged={()=>loadDrafts(businessId)} />
               </li>
             ))}
           </ul>
         </div>
+        <div><h2>Failed</h2><ul>{byStatus.failed.map(d=><li key={d.id}><PostPreview draft={d} onChanged={()=>loadDrafts(businessId)}/></li>)}</ul></div>
       </section>
     </main>
   );

@@ -33,15 +33,15 @@ function scoreReview(r: ReviewRow): number {
   return score;
 }
 
-export async function selectQuoteCandidates(businessId: number, limit = 5) {
-  const reviews = await query<ReviewRow>(
+export async function selectQuoteCandidates(businessId: number, limit = 5, execute: typeof query = query) {
+  const reviews = await execute<ReviewRow>(
     `SELECT r.id, r.business_id, r.rating, r.text
      FROM reviews r
-     WHERE r.business_id = $1
+     WHERE r.business_id = $1 AND r.duplicate_of IS NULL
        AND NOT EXISTS (
          SELECT 1
          FROM draft_posts d
-         WHERE d.review_id = r.id
+         WHERE d.review_id = r.id OR d.review_id IN (SELECT id FROM reviews WHERE duplicate_of = r.id)
        )
      ORDER BY r.reviewed_at DESC, r.id DESC
      LIMIT 300`,
@@ -65,13 +65,15 @@ export async function selectQuoteCandidates(businessId: number, limit = 5) {
   for (const item of ranked) {
     // Using draft_posts for persistence keeps MVP schema simple and avoids introducing
     // a separate candidate table before approval/publishing flow is wired.
-    const res = await query<{ id: number }>(
+    const res = await execute<{ id: number }>(
       `INSERT INTO draft_posts (business_id, review_id, quote_text, caption_text, status)
        VALUES ($1, $2, $3, '', 'draft')
+       ON CONFLICT (review_id) WHERE duplicate_of IS NULL AND review_id IS NOT NULL DO NOTHING
        RETURNING id`,
       [businessId, item.review.id, item.quoteText]
     );
 
+    if (!res.rowCount) continue;
     inserted.push({
       draftPostId: res.rows[0].id,
       reviewId: item.review.id,

@@ -1,0 +1,68 @@
+import assert from "node:assert/strict";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import sharp from "sharp";
+import { ownerRoute } from "../lib/authorization";
+import { draftMutation } from "../lib/services/draftLifecycle";
+import { NextRequest } from "next/server";
+import { databaseFixture } from "./db-fixture";
+import { sessionHash } from "../lib/auth-adapter";
+import { availableImage } from "../lib/services/draftLifecycle";
+async function main(){
+  process.env.NEXTAUTH_URL="http://localhost";
+  const root=mkdtempSync(join(tmpdir(),"lifecycle-"));process.env.MEDIA_ROOT=root;
+  try {
+    const png=await sharp({create:{width:1080,height:1080,channels:3,background:"#123456"}}).png().toBuffer();
+    writeFileSync(join(root,"fixture.png"),png);writeFileSync(join(root,"broken.png"),png.subarray(0,40));
+    assert.equal(await availableImage("/api/media/fixture.png"),true);
+    assert.equal(await availableImage("/api/media/broken.png"),false);
+    await databaseFixture(async c=>{
+      await c.query("INSERT INTO auth_users(id,email) VALUES('lifecycle-owner','lifecycle@example.invalid'),('foreign-owner','foreign@example.invalid')");
+      await c.query("INSERT INTO auth_sessions VALUES($1,'lifecycle-owner',now()+interval '1 hour')",[sessionHash("lifecycle-session")]);
+      const b=(await c.query("INSERT INTO businesses(name,timezone,owner_id) VALUES('Synthetic lifecycle','UTC','lifecycle-owner') RETURNING id")).rows[0].id;
+      const foreign=(await c.query("INSERT INTO businesses(name,timezone,owner_id) VALUES('Foreign synthetic','UTC','foreign-owner') RETURNING id")).rows[0].id;
+      const draft=async(caption="Synthetic caption",image:string|null="/api/media/fixture.png",status="draft",business=b)=>(await c.query("INSERT INTO draft_posts(business_id,quote_text,caption_text,image_path,status) VALUES($1,'Verbatim synthetic review',$2,$3,$4) RETURNING id",[business,caption,image,status])).rows[0].id;
+      const a=await draft(),empty=await draft(""),missing=await draft("Synthetic",null),scheduled=await draft("Synthetic","/api/media/fixture.png","scheduled"),other=await draft("Synthetic","/api/media/fixture.png","draft",foreign);
+      const post=async(path:string,body:unknown)=>require(`../app/api/${path}/route`).POST(new NextRequest(`http://localhost/api/${path}`,{method:"POST",headers:{origin:"http://localhost",cookie:"next-auth.session-token=lifecycle-session","content-type":"application/json"},body:JSON.stringify(body)}));
+      assert.equal((await post("drafts/status",{draftPostId:empty,status:"approved",version:0})).status,409);
+      assert.equal((await post("drafts/status",{draftPostId:missing,status:"approved",version:0})).status,409);
+      assert.equal((await post("drafts/status",{draftPostId:a,status:"approved"})).status,409);
+      const approved=await (await post("drafts/status",{draftPostId:a,status:"approved",version:0,auditNote:"Owner verified the source"})).json();
+      assert.equal(approved.draft.status,"approved");
+      const preview=ownerRoute(draftMutation("captions",async()=>Response.json({captions:{friendly:"Alternative"}})));
+      const previewResponse=await preview(new NextRequest("http://localhost/api/captions/generate",{method:"POST",headers:{origin:"http://localhost",cookie:"next-auth.session-token=lifecycle-session","content-type":"application/json"},body:JSON.stringify({draftPostId:a,version:approved.draft.version})}));
+      assert.equal(previewResponse.status,200);
+      const previewed=(await previewResponse.json()).draft;
+      assert.equal(previewed.status,"approved");assert.equal(previewed.version,approved.draft.version);
+      assert.equal((await c.query("SELECT reason FROM draft_events WHERE draft_id=$1 ORDER BY id DESC LIMIT 1",[a])).rows[0].reason,"Owner verified the source");
+      const manual=await draft();
+      assert.equal((await post("generation/regenerate",{draftPostId:manual,version:0})).status,202);
+      assert.equal((await c.query("SELECT manual_retries FROM generation_jobs WHERE draft_id=$1",[manual])).rows[0].manual_retries,1);
+      const edited=await (await post("drafts/caption",{draftPostId:a,captionText:"Edited synthetic caption",version:approved.draft.version})).json();
+      assert.equal(edited.draft.status,"draft");assert.equal(edited.draft.quote_text,"Verbatim synthetic review");
+      assert.equal((await post("drafts/caption",{draftPostId:a,captionText:"Stale",version:0})).status,409);
+      assert.equal((await post("drafts/status",{draftPostId:scheduled,status:"draft",version:0})).status,409);
+      assert.equal((await post("images/render",{draftPostId:scheduled,version:0})).status,409);
+      const concurrent=await draft();
+      const races=await Promise.all([post("drafts/status",{draftPostId:concurrent,status:"approved",version:0}),post("drafts/status",{draftPostId:concurrent,status:"approved",version:0})]);
+      assert.deepEqual(races.map(r=>r.status).sort(),[200,409]);
+      const bulk=await (await post("drafts/bulk",{items:[{draftPostId:a,version:edited.draft.version},{draftPostId:missing,version:0},{draftPostId:other,version:0}]})).json();
+      assert.deepEqual(bulk.results.map((r:{status:number})=>r.status),[200,409,404]);
+      const version=(await c.query("SELECT version FROM draft_posts WHERE id=$1",[a])).rows[0].version;
+      await c.query("INSERT INTO generation_periods VALUES($1,'2026-10-12','UTC',3,1,1,'quota_met') ON CONFLICT DO NOTHING",[b]);
+      await c.query("INSERT INTO generation_jobs(business_id,period_start,draft_id,state) VALUES($1,'2026-10-12',$2,'complete')",[b,a]);
+      assert.equal((await post("generation/regenerate",{draftPostId:a,version})).status,202);
+      const reset=(await c.query("SELECT * FROM draft_posts WHERE id=$1",[a])).rows[0];
+      assert.equal(reset.status,"draft");assert.equal(reset.caption_text,"");assert.equal(reset.image_path,null);
+      assert.equal((await post("drafts/status",{draftPostId:a,status:"approved",version:reset.version})).status,409,"pending generation cannot be approved");
+      assert.equal((await post("drafts/status",{draftPostId:a,status:"archived",version:reset.version})).status,200);
+      assert.equal((await c.query("SELECT state FROM generation_jobs WHERE draft_id=$1",[a])).rows[0].state,"failed");
+      const history=(await c.query("SELECT * FROM draft_events WHERE draft_id=$1 ORDER BY id",[a])).rows;
+      assert.ok(history.length>=6);assert.ok(history.every(r=>r.actor_id==="lifecycle-owner"));
+      assert.equal(history.at(-1).to_status,"archived");
+    });
+    console.log("lifecycle completeness/transitions/concurrency/bulk/regeneration/audit tests passed");
+  }finally{rmSync(root,{recursive:true,force:true});}
+}
+main().catch(err=>{console.error(err);process.exitCode=1;});

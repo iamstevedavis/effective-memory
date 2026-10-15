@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 type Business = { id: number; name: string };
 type Draft = {
-  id: number;
+  id: number; version: number;
   review_id: number | null;
   quote_text: string;
   caption_text: string;
@@ -16,7 +16,7 @@ type CaptionSet = { friendly: string; premium: string; playful: string };
 export default function QuotesPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [businessId, setBusinessId] = useState("");
-  const [limit, setLimit] = useState(5);
+  const [limit, setLimit] = useState(3);
   const [message, setMessage] = useState("");
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [captionVariantsByDraft, setCaptionVariantsByDraft] = useState<Record<number, CaptionSet>>({});
@@ -55,7 +55,7 @@ export default function QuotesPage() {
       setMessage(`Selector failed: ${data.error ?? "unknown error"}`);
       return;
     }
-    setMessage(`Inserted ${data.inserted} quote candidates`);
+    setMessage(`Queued ${data.inserted} drafts: ${data.reason}. See approval for persisted progress.`);
     await loadDrafts(businessId);
   }
 
@@ -65,7 +65,7 @@ export default function QuotesPage() {
       const res = await fetch("/api/captions/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ draftPostId })
+        body: JSON.stringify({ draftPostId, version: drafts.find(d=>d.id===draftPostId)?.version })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -83,7 +83,7 @@ export default function QuotesPage() {
     const res = await fetch("/api/drafts/caption", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ draftPostId, captionText })
+      body: JSON.stringify({ draftPostId, version: drafts.find(d=>d.id===draftPostId)?.version, captionText })
     });
     const data = await res.json();
     if (!res.ok) {
@@ -100,7 +100,7 @@ export default function QuotesPage() {
       const res = await fetch("/api/images/render", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ draftPostId })
+        body: JSON.stringify({ draftPostId, version: drafts.find(d=>d.id===draftPostId)?.version })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -132,9 +132,9 @@ export default function QuotesPage() {
         <input
           type="number"
           min={1}
-          max={25}
+          max={5}
           value={limit}
-          onChange={(e) => setLimit(Number(e.target.value) || 5)}
+          onChange={(e) => setLimit(Number(e.target.value) || 3)}
           style={{ width: 80, marginLeft: 8 }}
         />
 

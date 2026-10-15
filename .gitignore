@@ -4,3 +4,5 @@ dist-worker/
 .env
 npm-debug.log*
 tsconfig.tsbuildinfo
+
+/private-media/

@@ -1,9 +1,11 @@
+import { draftMutation } from "../../../../lib/services/draftLifecycle";
+import { ownerRoute } from "../../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "../../../../lib/db";
 import type { BrandTone } from "../../../../lib/branding";
 import { renderDraftImage } from "../../../../lib/services/imageRenderer";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const body = await req.json();
     const draftPostId = Number(body?.draftPostId);
@@ -43,7 +45,8 @@ export async function POST(req: NextRequest) {
       brandHex,
       secondaryBrandHex,
       logoUrl: row.logo_url,
-      brandTone: row.brand_tone
+      brandTone: row.brand_tone,
+      templateConfig: row.brand_colors
     });
 
     const updated = await query<{ id: number; image_path: string }>(
@@ -60,3 +63,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "render failed" }, { status: 500 });
   }
 }
+
+export const POST = ownerRoute(draftMutation("render", handlePOST));

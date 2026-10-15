@@ -1,7 +1,9 @@
+import { draftMutation } from "../../../../lib/services/draftLifecycle";
+import { ownerRoute } from "../../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "../../../../lib/db";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const body = await req.json();
   const draftPostId = Number(body?.draftPostId);
   const status = String(body?.status ?? "").trim();
@@ -11,8 +13,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "valid draftPostId is required" }, { status: 400 });
   }
 
-  if (!["draft", "approved"].includes(status)) {
-    return NextResponse.json({ error: "status must be draft or approved" }, { status: 400 });
+  if (!["draft", "approved", "archived"].includes(status)) {
+    return NextResponse.json({ error: "status must be draft, approved or archived" }, { status: 400 });
   }
 
   const result = await query<{
@@ -36,3 +38,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ draft: result.rows[0] });
 }
+
+export const POST = ownerRoute(draftMutation("status", handlePOST));

@@ -1,77 +1,77 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
-import sharp from "sharp";
-import type { BrandTone } from "../branding";
+import { createHash, randomUUID } from "node:crypto";
+import sharp, { type OverlayOptions } from "sharp";
+import { quoteOptions, type BrandTone } from "../branding";
+import { draftImageFilename, draftImageUrl, mediaRoot } from "./media";
 
-function esc(text: string): string {
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+const escapeMarkup = (text: string) => text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+export function foreground(hex: string): string {
+  const rgb = hex.slice(1).match(/../g)!.map(c => parseInt(c, 16) / 255)
+    .map(c => c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const luminance = rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722;
+  return (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05) ? "#000000" : "#ffffff";
 }
-
-function normalizeHex(color?: string | null): string | null {
-  if (!color) return null;
-  const trimmed = color.trim();
-  if (!trimmed) return null;
-  const withHash = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
-  return /^#[0-9a-fA-F]{6}$/.test(withHash) ? withHash.toLowerCase() : null;
+function color(value: string | null | undefined, fallback: string) {
+  if (!value) return fallback;
+  if (!/^#[a-f\d]{6}$/i.test(value)) throw new Error("Use six-digit hexadecimal brand colors");
+  return value;
 }
-
-export async function renderDraftImage(params: {
-  draftPostId: number;
-  businessName: string;
-  quoteText: string;
-  brandHex?: string | null;
-  secondaryBrandHex?: string | null;
-  logoUrl?: string | null;
-  brandTone?: BrandTone;
-}) {
-  const width = 1080;
-  const height = 1080;
-
-  const primary = normalizeHex(params.brandHex) ?? "#1f2937";
-  const secondary = normalizeHex(params.secondaryBrandHex) ?? "#374151";
-
-  const tone = params.brandTone ?? "friendly";
-  const toneFont = tone === "premium" ? "Georgia,serif" : "Arial,sans-serif";
-  const quoteColor = tone === "playful" ? "#fef08a" : "#ffffff";
-
-  const business = esc(params.businessName);
-  const quote = esc(params.quoteText);
-  const logoBlock = params.logoUrl
-    ? `<text x="80" y="190" fill="#ffffff" font-size="22" font-family="Arial">logo: ${esc(params.logoUrl)}</text>`
-    : "";
-
-  const svg = `
-  <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="${primary}" />
-        <stop offset="100%" stop-color="${secondary}" />
-      </linearGradient>
-    </defs>
-    <rect width="100%" height="100%" fill="url(#bg)" />
-    <rect x="0" y="0" width="100%" height="14" fill="${secondary}" />
-    <text x="80" y="110" fill="#ffffff" font-size="46" font-weight="700" font-family="Arial">${business}</text>
-    <text x="900" y="110" fill="#ffffff" font-size="20" text-anchor="end" font-family="Arial">tone: ${tone}</text>
-    ${logoBlock}
-    <foreignObject x="80" y="260" width="920" height="680">
-      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:${toneFont};color:${quoteColor};font-size:48px;line-height:1.25;">
-        “${quote}”
-      </div>
-    </foreignObject>
-  </svg>`;
-
-  const outDir = join(process.cwd(), "public", "generated");
-  mkdirSync(outDir, { recursive: true });
-  const filename = `draft-${params.draftPostId}.png`;
-  const outPath = join(outDir, filename);
-
-  const png = await sharp(Buffer.from(svg)).png({ quality: 90 }).toBuffer();
-  writeFileSync(outPath, png);
-
-  return { fileSystemPath: outPath, publicPath: `/generated/${filename}` };
+async function layout(text: string, width: number, height: number, sizes: number[], fill: string, serif: boolean) {
+  if (!text.trim() || text.length > 4000 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(text)) {
+    throw new Error("Text is empty, unsupported, or too long; select a shorter verbatim quote");
+  }
+  for (const size of sizes) {
+    const { data, info } = await sharp({ text: {
+      text: `<span foreground="${fill}">${escapeMarkup(text)}</span>`,
+      font: `DejaVu ${serif ? "Serif" : "Sans"} ${size}`, width, rgba: true, wrap: "word-char", dpi: 72
+    }}).png().toBuffer({ resolveWithObject: true });
+    if (info.width <= width && info.height <= height) return { input: data };
+  }
+  throw new Error("Text does not fit safely; select a shorter verbatim quote or business display name");
+}
+export type RenderParams = {
+  draftPostId: number; businessName: string; quoteText: string;
+  brandHex?: string | null; secondaryBrandHex?: string | null;
+  logoUrl?: string | null; brandTone?: BrandTone; templateConfig?: unknown;
+};
+export async function renderQuoteCard(params: RenderParams) {
+  const options = quoteOptions(params.templateConfig);
+  const primary = color(params.brandHex, "#1f2937"), secondary = color(params.secondaryBrandHex, "#374151");
+  const ink = foreground(primary);
+  let logo: Buffer | undefined;
+  if (params.logoUrl) {
+    // Only embedded, bounded raster uploads: no URL fetching, redirects, SVG, or SSRF surface.
+    if (params.logoUrl.length > 350000 || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(params.logoUrl)) {
+      throw new Error("Logo must be a PNG/JPEG/WebP data upload under 256 KB; remote URLs are unsupported");
+    }
+    const bytes = Buffer.from(params.logoUrl.split(",")[1], "base64");
+    if (bytes.length > 256000) throw new Error("Logo exceeds 256 KB");
+    try {
+      const image = sharp(bytes, { limitInputPixels: 4000000, animated: false });
+      const metadata = await image.metadata();
+      if (!["png", "jpeg", "webp"].includes(metadata.format ?? "") || (metadata.pages ?? 1) > 1) throw new Error();
+      logo = await image.resize(140, 140, { fit: "contain", background: "#ffffff" }).png().toBuffer();
+    } catch { throw new Error("Invalid raster logo; upload a valid nonanimated image under 4 megapixels"); }
+  }
+  const name = await layout(params.businessName, logo ? 720 : 920, 160, [46, 40, 34, 28], ink, false);
+  const quote = await layout(`“${params.quoteText}”`, 920, 650, options.quoteSize === "large" ? [56, 52, 48, 44, 40] : [48, 44, 40, 36, 32], ink, params.brandTone === "premium");
+  const layers: OverlayOptions[] = [
+    { input: { create: { width: 1080, height: 14, channels: 4, background: secondary } }, top: 0, left: 0 },
+    { ...name, top: 80, left: 80 }, { ...quote, top: 300, left: 80 }
+  ];
+  if (logo) layers.push({ input: logo, top: 70, left: 860 });
+  const png = await sharp({ create: { width: 1080, height: 1080, channels: 4, background: primary } }).composite(layers).png().toBuffer();
+  return png;
+}
+export async function renderDraftImage(params: RenderParams) {
+  const png = await renderQuoteCard(params);
+  const digest = createHash("sha256").update(png).digest("hex").slice(0,20);
+  const root = mediaRoot();
+  mkdirSync(root, { recursive: true });
+  const outPath = join(root, draftImageFilename(params.draftPostId, digest));
+  const temp = `${outPath}.${randomUUID()}.tmp`;
+  writeFileSync(temp, png);
+  renameSync(temp, outPath);
+  return { fileSystemPath: outPath, publicPath: draftImageUrl(params.draftPostId, digest) };
 }

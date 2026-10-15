@@ -36,3 +36,8 @@ assert.doesNotMatch(
 );
 
 console.log("tooling regression tests passed");
+
+for (const file of ["docker-compose.yml", "docker-compose.dev.yml"]) {
+  assert.match(read(file), /REDIS_URL=redis:\/\/redis:6379/, "Compose must override host Redis URL with its service hostname");
+  assert.doesNotMatch(read(file), /REDIS_URL=\$\{REDIS_URL/, "host .env must not redirect the worker to localhost");
+}
