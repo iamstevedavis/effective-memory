@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
       brandHex,
       secondaryBrandHex,
       logoUrl: row.logo_url,
-      brandTone: row.brand_tone
+      brandTone: row.brand_tone,
+      templateConfig: row.brand_colors
     });
 
     const updated = await query<{ id: number; image_path: string }>(

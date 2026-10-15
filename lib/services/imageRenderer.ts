@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import sharp, { type OverlayOptions } from "sharp";
-import type { BrandTone } from "../branding";
+import { quoteOptions, type BrandTone } from "../branding";
 import { draftImageFilename, draftImageUrl, mediaRoot } from "./media";
 
 const escapeMarkup = (text: string) => text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
@@ -30,11 +30,13 @@ async function layout(text: string, width: number, height: number, sizes: number
   }
   throw new Error("Text does not fit safely; select a shorter verbatim quote or business display name");
 }
-export async function renderDraftImage(params: {
+export type RenderParams = {
   draftPostId: number; businessName: string; quoteText: string;
   brandHex?: string | null; secondaryBrandHex?: string | null;
-  logoUrl?: string | null; brandTone?: BrandTone;
-}) {
+  logoUrl?: string | null; brandTone?: BrandTone; templateConfig?: unknown;
+};
+export async function renderQuoteCard(params: RenderParams) {
+  const options = quoteOptions(params.templateConfig);
   const primary = color(params.brandHex, "#1f2937"), secondary = color(params.secondaryBrandHex, "#374151");
   const ink = foreground(primary);
   let logo: Buffer | undefined;
@@ -53,13 +55,17 @@ export async function renderDraftImage(params: {
     } catch { throw new Error("Invalid raster logo; upload a valid nonanimated image under 4 megapixels"); }
   }
   const name = await layout(params.businessName, logo ? 720 : 920, 160, [46, 40, 34, 28], ink, false);
-  const quote = await layout(`“${params.quoteText}”`, 920, 650, [48, 44, 40, 36, 32], ink, params.brandTone === "premium");
+  const quote = await layout(`“${params.quoteText}”`, 920, 650, options.quoteSize === "large" ? [56, 52, 48, 44, 40] : [48, 44, 40, 36, 32], ink, params.brandTone === "premium");
   const layers: OverlayOptions[] = [
     { input: { create: { width: 1080, height: 14, channels: 4, background: secondary } }, top: 0, left: 0 },
     { ...name, top: 80, left: 80 }, { ...quote, top: 300, left: 80 }
   ];
   if (logo) layers.push({ input: logo, top: 70, left: 860 });
   const png = await sharp({ create: { width: 1080, height: 1080, channels: 4, background: primary } }).composite(layers).png().toBuffer();
+  return png;
+}
+export async function renderDraftImage(params: RenderParams) {
+  const png = await renderQuoteCard(params);
   const root = mediaRoot();
   mkdirSync(root, { recursive: true });
   const outPath = join(root, draftImageFilename(params.draftPostId));

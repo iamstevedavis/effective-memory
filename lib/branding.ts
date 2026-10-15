@@ -22,11 +22,28 @@ export function parseBrandColors(input: unknown): Record<string, string> {
   const brandColors: Record<string, string> = {};
   if (primary) brandColors.primary = primary;
   if (secondary) brandColors.secondary = secondary;
-  return brandColors;
+  return { ...brandColors, ...quoteOptions(input) };
 }
 
 export function parseLogoUrl(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const trimmed = input.trim();
   return trimmed || null;
+}
+
+export const QUOTE_TEMPLATE = "quote-card-v1";
+export type QuoteOptions = { template: typeof QUOTE_TEMPLATE; quoteSize: "standard" | "large" };
+export function quoteOptions(value: unknown): QuoteOptions {
+  const v = (value ?? {}) as Record<string, unknown>;
+  if (v.template !== undefined && v.template !== QUOTE_TEMPLATE ||
+      v.quoteSize !== undefined && !["standard", "large"].includes(String(v.quoteSize))) {
+    throw new Error("Unsupported quote template or text size");
+  }
+  return { template: QUOTE_TEMPLATE, quoteSize: v.quoteSize === "large" ? "large" : "standard" };
+}
+export function validBrandConfig(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const v = value as Record<string, unknown>;
+  try { quoteOptions(v); } catch { return false; }
+  return ["primary", "secondary"].every(key => v[key] === undefined || normalizeHex(v[key]) !== null);
 }
