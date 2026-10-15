@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
 import type { BrandTone } from "../branding";
+import { draftImageFilename, draftImageUrl, mediaRoot } from "./media";
 
 function esc(text: string): string {
   return text
@@ -65,13 +66,13 @@ export async function renderDraftImage(params: {
     </foreignObject>
   </svg>`;
 
-  const outDir = join(process.cwd(), "public", "generated");
+  const outDir = mediaRoot();
   mkdirSync(outDir, { recursive: true });
-  const filename = `draft-${params.draftPostId}.png`;
+  const filename = draftImageFilename(params.draftPostId);
   const outPath = join(outDir, filename);
 
   const png = await sharp(Buffer.from(svg)).png({ quality: 90 }).toBuffer();
   writeFileSync(outPath, png);
 
-  return { fileSystemPath: outPath, publicPath: `/generated/${filename}` };
+  return { fileSystemPath: outPath, publicPath: draftImageUrl(params.draftPostId) };
 }

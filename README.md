@@ -52,7 +52,9 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `DATABASE_URL` | yes (host exec) | Host execution connects to `...@localhost:5432/...`; Compose services build their own URL from `POSTGRES_*` via the `postgres` service name |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | yes (containers) | Defaults in `.env.example`; do not rename the database/volumes (data lives there) |
 | `OPENAI_API_KEY` | no | Enables caption generation; without it the worker marks affected drafts `failed` with an actionable error instead of crashing |
+| `OPENAI_TIMEOUT_MS` | no | Caption provider timeout in milliseconds (default `20000`); on timeout the draft is marked `failed` with an actionable error |
 | `DRAFT_PIPELINE_INTERVAL_MS` | no | Worker sweep interval (default `60000`) |
+| `MEDIA_ROOT` | no | Where rendered draft images are written/served (default `public/generated`, the `generated_media` volume mount in Compose) |
 | `REDIS_URL` | no | Reserved for future queue work; unused by the current worker |
 
 Postgres and Redis ports are bound to loopback (`127.0.0.1`) only — reachable
@@ -66,11 +68,23 @@ from the host, not exposed to the network.
 ## Tests, lint, typecheck, build
 
 ```bash
-npm test          # draft pipeline + branding routes + tooling regressions (synthetic, no external services)
+npm test          # pipeline + branding routes + caption decoding + media smoke + tooling regressions (synthetic, no external services)
 npm run lint      # ESLint
 npm run typecheck # tsc --noEmit
 npm run build     # next build
 ```
+
+### Opt-in live-provider verification
+
+`npm test` never calls the paid provider. To verify caption decoding against
+the real OpenAI Responses API (one paid call):
+
+```bash
+LIVE_PROVIDER_VERIFY=1 OPENAI_API_KEY=sk-... npm run test:live
+```
+
+Without `LIVE_PROVIDER_VERIFY=1` and `OPENAI_API_KEY` the script reports the
+skip honestly and exits 0, so CI stays green without credentials.
 
 ## Worker
 
@@ -81,6 +95,7 @@ npm run build     # next build
 
 - `docker compose up --build` is the production-style path: multi-stage builds, deterministic `npm ci`, healthchecks, bounded shutdown (`stop_grace_period`), shared media volume, loopback-only database/Redis ports.
 - Restart safety: database and generated media live in named volumes (`postgres_data`, `generated_media`); container restarts preserve them.
+- Image delivery: the worker writes PNGs into the shared `generated_media` volume; the web container serves them via `GET /api/media/<filename>` (see `app/api/media/[name]/route.ts`). Browsers should always use the `/api/media/...` URL stored in `draft_posts.image_path` — never a bare `public/generated/...` path, because runtime-written files under `public/` are not guaranteed to be served by the Next production server.
 
 ## Current limitations
 
