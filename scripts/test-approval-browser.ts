@@ -23,7 +23,7 @@ async function main(){
     await c.query("INSERT INTO generation_periods VALUES($1,'2026-10-12','UTC',5,4,3,'quota_met')",[bid]);
     await c.query("INSERT INTO generation_jobs(business_id,period_start,draft_id,state,attempts,error_code) VALUES($1,'2026-10-12',$2,'failed',3,'generation_failed')",[bid,ids[3]]);
     await webFixture(async base=>{
-      const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH??"/usr/bin/chromium",headless:true,args:["--no-sandbox"]});
+      const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH==="playwright"?undefined:process.env.CHROMIUM_PATH??"/usr/bin/chromium",headless:true,args:["--no-sandbox"]});
       try{
         const context=await browser.newContext();await context.addCookies([{name:"next-auth.session-token",value:"browser-session",url:base}]);
         assert.equal((await context.request.get(`${base}/api/drafts?businessId=${bid}`)).status(),200,"real draft listing succeeds");

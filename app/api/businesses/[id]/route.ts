@@ -1,4 +1,5 @@
 import { validTimezone } from "../../../../lib/timezone";
+import { rasterLogo } from "../../../../lib/services/logos";
 import { ownerRoute } from "../../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { parseBrandColors, parseLogoUrl, validBrandConfig, type BrandTone } from "../../../../lib/branding";
@@ -36,6 +37,8 @@ async function handlePATCH(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const body = await req.json();
+  if(body.logoUrl !== undefined){try{await rasterLogo(body.logoUrl);}catch{return NextResponse.json({error:"Upload a valid PNG/JPEG/WebP logo under 256 KB and 4 megapixels; remote logos are unsupported"},{status:400});}}
+  if (body.timezone !== undefined && !validTimezone(String(body.timezone))) return NextResponse.json({error:"Use a valid IANA timezone"},{status:400});
   if (body.weeklyTarget !== undefined && (!Number.isInteger(body.weeklyTarget) || body.weeklyTarget < 1 || body.weeklyTarget > 5)) return NextResponse.json({error:"Weekly target must be 1–5"},{status:400});
   if (body?.brandColors !== undefined && !validBrandConfig(body.brandColors)) {
     return NextResponse.json({ error: "Invalid brand colors or template options" }, { status: 400 });
@@ -101,8 +104,8 @@ async function handlePATCH(req: NextRequest, context: { params: Promise<{ id: st
   const current = existing.rows[0];
 
   const name = body?.name === undefined ? current.name : String(body.name ?? "").trim();
-  if (!name) {
-    return NextResponse.json({ error: "name cannot be empty" }, { status: 400 });
+  if (!name || name.length > 120) {
+    return NextResponse.json({ error: "Use a business name of 1–120 characters" }, { status: 400 });
   }
 
   const timezone =

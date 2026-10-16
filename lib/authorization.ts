@@ -34,10 +34,10 @@ export function ownerRoute(handler: (req: NextRequest, context: any) => Promise<
         else input = await copy.json();
       }
       let businessId: unknown, draftId: unknown;
-      if (path === "/api/businesses" || path === "/api/branding/preview" || path === "/api/drafts/bulk") { /* owner-wide operations */ }
+      if (path === "/api/businesses" || path === "/api/branding/preview" || path === "/api/drafts/bulk" || path === "/api/onboarding") { /* owner-wide operations */ }
       else if (/^\/api\/businesses\/\d+$/.test(path)) businessId = path.split("/").pop();
-      else if (["/api/reviews", "/api/drafts", "/api/generation"].includes(path)) businessId = req.nextUrl.searchParams.get("businessId");
-      else if (["/api/reviews/import", "/api/quotes/select"].includes(path)) businessId = input.businessId;
+      else if (["/api/reviews", "/api/drafts", "/api/generation", "/api/posting-slots"].includes(path)) businessId = mutation ? input.businessId : req.nextUrl.searchParams.get("businessId");
+      else if (["/api/reviews/import", "/api/quotes/select", "/api/posting-slots", "/api/posting-slots/assign"].includes(path)) businessId = input.businessId;
       else if (/^\/api\/(drafts\/(caption|status|schedule)|generation\/(retry|regenerate)|captions\/generate|images\/render)$/.test(path)) draftId = input.draftPostId;
       else if (path.startsWith("/api/media/")) {
         const exists = await query("SELECT 1 FROM draft_posts d JOIN businesses b ON b.id=d.business_id WHERE b.owner_id=$1 AND d.image_path=$2", [owner,path]);
@@ -48,7 +48,7 @@ export function ownerRoute(handler: (req: NextRequest, context: any) => Promise<
         if (!Number.isSafeInteger(id) || id <= 0) return deny(400, "Valid resource ID required");
         const exists = draftId !== undefined ? await query("SELECT 1 FROM draft_posts d JOIN businesses b ON b.id=d.business_id WHERE d.id=$1 AND b.owner_id=$2", [id,owner]) : await query("SELECT 1 FROM businesses WHERE id=$1 AND owner_id=$2", [id,owner]);
         if (!exists.rowCount) return deny(404, "Resource not found");
-      } else if (!["/api/businesses", "/api/branding/preview", "/api/drafts/bulk"].includes(path) && !path.startsWith("/api/media/")) return deny(400, "Resource ID required");
+      } else if (!["/api/businesses", "/api/branding/preview", "/api/drafts/bulk", "/api/onboarding"].includes(path) && !path.startsWith("/api/media/")) return deny(400, "Resource ID required");
       if (["/api/captions/generate", "/api/images/render"].includes(path) && !await chargeGeneration(owner)) return deny(429, "Daily generation limit reached");
       if (path === "/api/branding/preview" && !await chargeGeneration(owner, 1, "preview")) return deny(429, "Preview limit reached");
       const response = await owners.run(owner, () => handler(req, context));

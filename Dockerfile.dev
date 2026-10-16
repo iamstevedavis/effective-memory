@@ -3,6 +3,7 @@
 # Single-stage development image: full dependency install, no build step.
 # Compose overrides supply the command and source mounts.
 FROM node:22-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core fonts-noto-core fonts-noto-cjk && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
