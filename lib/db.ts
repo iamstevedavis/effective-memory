@@ -18,7 +18,7 @@ function getPool() {
 
 export const pool = {
   connect: () => getPool().connect(),
-  end: () => (poolInstance ? poolInstance.end() : Promise.resolve())
+  end: async () => { if (poolInstance) { await poolInstance.end(); poolInstance = null; } }
 };
 
 export async function query<T extends QueryResultRow = QueryResultRow>(
