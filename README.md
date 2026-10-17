@@ -7,7 +7,8 @@ image rendering, and a human-in-the-loop approval queue.
 ## Prerequisites
 
 - Node.js 22+ and npm 10+ (see `.nvmrc`)
-- Docker with the Compose plugin (runs Postgres and Redis containers)
+- Docker with the Compose plugin (runs Postgres and Redis containers); the
+  all-containers dev override needs Compose 2.24.4+ (`docker compose version`)
 
 ## Quickstart — host + containers (recommended for development)
 
@@ -29,7 +30,9 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
 The dev override runs `next dev` and mounts the repository into the web/worker
-containers. Migrations run once before web/worker start.
+containers as your host user (uid/gid 1000 by default; set `UID`/`GID` in `.env`
+if yours differ). Rendered media goes to `./private-media` instead of the
+`generated_media` volume. Migrations run once before web/worker start.
 
 ## Quickstart — all containers (production-style)
 
