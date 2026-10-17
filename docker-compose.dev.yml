@@ -1,18 +1,48 @@
 # Development override: hot-reload web (next dev) + source mounts.
-# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-# Requires Docker Compose 2.24.4+ (uses the `!override` merge tag).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# (add --build only after changing Dockerfile.dev). Requires Docker Compose
+# 2.24.4+ (uses the `!override` merge tag).
+#
+# Dependencies live in the shared `node_modules` volume. The `deps` service
+# runs first and reinstalls them only when package-lock.json changes, so a
+# pull that adds packages needs no rebuild or volume reset.
 #
 # Note: `environment` lists replace (not merge with) the base file, so all
 # variables are repeated here.
 services:
+  deps:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    user: "${UID:-1000}:${GID:-1000}"
+    command:
+      - sh
+      - -c
+      - >-
+        sha256sum -c --status node_modules/.package-lock.sha256 2>/dev/null
+        || { echo "package-lock.json changed; running npm ci"; npm ci
+        && sha256sum package-lock.json > node_modules/.package-lock.sha256; }
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    restart: "no"
+
   migrate:
     build:
       context: .
       dockerfile: Dockerfile.dev
+    user: "${UID:-1000}:${GID:-1000}"
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-effective_memory}
     command: ["npm", "run", "db:migrate"]
+    # Run migrations from the mounted source so new files apply without a rebuild.
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    depends_on:
+      deps:
+        condition: service_completed_successfully
 
   web:
     build:
@@ -20,8 +50,8 @@ services:
       dockerfile: Dockerfile.dev
     command: ["npm", "run", "dev"]
     # Run as the host user so files written into the bind mount (.next/,
-    # public/) stay owned by you, not root. Override with UID/GID if yours
-    # isn't 1000 (the image's `node` user).
+    # public/) stay owned by you, not root. 1000 is the image's `node` user,
+    # which also owns the node_modules volume.
     user: "${UID:-1000}:${GID:-1000}"
     environment:
       - NODE_ENV=development
@@ -36,7 +66,7 @@ services:
     # media lives in ./private-media (gitignored) via the repo mount instead.
     volumes: !override
       - .:/app
-      - /app/node_modules
+      - node_modules:/app/node_modules
 
   worker:
     build:
@@ -44,8 +74,8 @@ services:
       dockerfile: Dockerfile.dev
     command: ["npm", "run", "worker"]
     # Run as the host user so files written into the bind mount (.next/,
-    # public/) stay owned by you, not root. Override with UID/GID if yours
-    # isn't 1000 (the image's `node` user).
+    # public/) stay owned by you, not root. 1000 is the image's `node` user,
+    # which also owns the node_modules volume.
     user: "${UID:-1000}:${GID:-1000}"
     environment:
       - NODE_ENV=development
@@ -58,4 +88,7 @@ services:
     # media lives in ./private-media (gitignored) via the repo mount instead.
     volumes: !override
       - .:/app
-      - /app/node_modules
+      - node_modules:/app/node_modules
+
+volumes:
+  node_modules:
