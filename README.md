@@ -175,6 +175,8 @@ stopping writes first; retain audit events, revision columns, and immutable medi
 
 Real publishing is not configured: [Buffer feasibility and exact setup blockers](SCHEDULER.md). The legacy scheduling CLI fails closed.
 
+Google review sync is not implemented or live-verified: [feasibility, policy questions and owner setup blockers](GOOGLE.md). Manual CSV remains supported.
+
 Timezone-aware weekly planning, DST rules, explicit bulk confirmation and provider
 limitations: [POSTING.md](POSTING.md). Apply migration 010 before running this UI.
 
