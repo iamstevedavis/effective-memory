@@ -130,6 +130,8 @@ skip honestly and exits 0, so CI stays green without credentials.
 - Manual CSV review import only
 - Owner authentication and operational setup: [AUTH.md](AUTH.md)
 
+Pilot preparation, manual measurements, and privacy-safe reporting: [PILOT.md](PILOT.md).
+
 Quote-card rendering uses Sharp/Pango measured wrapping with Bricolage Grotesque, loaded
 from `assets/fonts` (SIL OFL, licence alongside), on a 1080px canvas with 80px safe margins
 and automatic black/white contrast. Layout: rating stars top left, the verbatim quote in
