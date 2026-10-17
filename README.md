@@ -130,15 +130,17 @@ skip honestly and exits 0, so CI stays green without credentials.
 - Manual CSV review import only
 - Owner authentication and operational setup: [AUTH.md](AUTH.md)
 
-Quote-card rendering uses Sharp/Pango measured wrapping (DejaVu Sans/Serif), a
-1080px canvas, 80px safe margins, and automatic black/white contrast. Names fit
-within 160px and quotes within 650px at 32–48px; unfit text is rejected verbatim,
-never truncated. Supply optional logos as PNG/JPEG/WebP base64 data URLs (256 KB,
+Quote-card rendering uses Sharp/Pango measured wrapping with Bricolage Grotesque, loaded
+from `assets/fonts` (SIL OFL, licence alongside), on a 1080px canvas with 80px safe margins
+and automatic black/white contrast. Layout: rating stars top left, the verbatim quote in
+the middle, reviewer and business name bottom left, logo bottom right. Quotes fit at
+32–48px (Large: 40–56px); unfit text is rejected verbatim, never truncated. The Polished
+(`premium`) tone sets the quote in DejaVu Serif. Supply optional logos as PNG/JPEG/WebP base64 data URLs (256 KB,
 4 MP maximum); remote URLs/SVG/animation are rejected without network requests.
 Manual and worker generation use the same tone/colors/logo. Regenerate explicitly
 after brand changes. `IMAGE_EVIDENCE_DIR=/tmp/evidence npm test` saves synthetic PNGs.
 
-Quote rendering uses DejaVu with Noto core/CJK fallback fonts in both runtime images, including for Chinese, Japanese, Korean and other supported Unicode scripts. Host installations must install the same font packages before rendering.
+Quote rendering falls back to DejaVu and Noto core/CJK fonts in both runtime images, including for Chinese, Japanese, Korean and other supported Unicode scripts. Host installations must install the same font packages before rendering.
 Template settings: Brand (`/brand`) → Quote text size → live preview →
 Save changes. `quote-card-v1` is the single supported template. Standard fits quotes at
 32–48px; Large uses 40–56px and may reject longer quotes. Settings live in

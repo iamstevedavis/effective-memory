@@ -50,7 +50,7 @@ export async function processGeneration(id: number, deps: GenerationDeps = defau
   if (!claimed) return false;
   const heartbeat = setInterval(()=> { void query("UPDATE generation_jobs SET lease_until=$3::timestamptz+interval '90 seconds' WHERE id=$1 AND lease=$2",[id,lease,deps.clock()]).catch(()=>{}); },10000);
   try {
-    const row = (await query(`SELECT d.*,b.name,b.owner_id,b.brand_colors,b.logo_url,b.brand_tone FROM draft_posts d JOIN businesses b ON b.id=d.business_id WHERE d.id=$1`,[claimed.draft_id])).rows[0];
+    const row = (await query(`SELECT d.*,b.name,b.owner_id,b.brand_colors,b.logo_url,b.brand_tone,r.rating,r.author_name FROM draft_posts d JOIN businesses b ON b.id=d.business_id LEFT JOIN reviews r ON r.id=d.review_id WHERE d.id=$1`,[claimed.draft_id])).rows[0];
     if (!row || !["draft","failed"].includes(row.status)) throw new Error("draft_not_editable");
     if (!row.caption_text.trim()) {
       if (!await chargeGeneration(row.owner_id)) throw new Error("daily_limit");
@@ -61,7 +61,7 @@ export async function processGeneration(id: number, deps: GenerationDeps = defau
       if (!saved.rowCount) return false;
     }
     if (!row.image_path) {
-      const image = await deps.render({draftPostId:row.id,businessName:row.name,quoteText:row.quote_text,
+      const image = await deps.render({draftPostId:row.id,businessName:row.name,quoteText:row.quote_text,rating:row.rating,authorName:row.author_name,
         brandHex:row.brand_colors.primary,secondaryBrandHex:row.brand_colors.secondary,logoUrl:row.logo_url,
         brandTone:row.brand_tone,templateConfig:row.brand_colors});
       const saved = await query("UPDATE draft_posts SET image_path=$2,updated_at=now() WHERE id=$1 AND status IN ('draft','failed') AND EXISTS(SELECT 1 FROM generation_jobs WHERE id=$3 AND lease=$4 AND state='running') RETURNING id",[row.id,image.publicPath,id,lease]);
