@@ -5,6 +5,7 @@ const boundary = require("../lib/authorization");
 boundary.ownerRoute = (handler: unknown) => handler;
 boundary.currentOwner = () => "synthetic-owner";
 const { POST } = require("../app/api/reviews/import/route");
+const { GET: listReviews } = require("../app/api/reviews/route");
 import { parseCsv } from "../lib/csv";
 import { databaseFixture } from "./db-fixture";
 async function main() {
@@ -50,12 +51,23 @@ async function main() {
     assert.equal((await (await upload(csv, second)).json()).imported, 1);
     const stable = 'rating,text,reviewed_at,source_review_id\n5,Original text,2026-10-01,source-1\n5,Changed text,2026-10-02,source-1';
     assert.deepEqual([(await (await upload(stable)).json()).duplicates], [1]);
+    const listed = (await client.query("INSERT INTO businesses(name,timezone) VALUES('Synthetic status fixture','UTC') RETURNING id")).rows[0].id;
+    const rows = await client.query(`INSERT INTO reviews(business_id,source,source_review_id,rating,text,reviewed_at) VALUES
+      ($1,'manual','ready',5,'A lovely synthetic visit with friendly staff','2026-10-01'),($1,'manual','used',5,'Another lovely synthetic visit with friendly staff','2026-10-02'),
+      ($1,'manual','low',3,'An average synthetic visit with slow staff today','2026-10-03'),($1,'manual','short',5,'So   good!!','2026-10-04'),
+      ($1,'manual','rude',5,'The SHITtiest parking but a lovely synthetic visit','2026-10-05'),($1,'manual','canon',5,'A canonical synthetic review with friendly staff','2026-10-06') RETURNING id`, [listed]);
+    const child = (await client.query("INSERT INTO reviews(business_id,source,source_review_id,rating,text,reviewed_at,duplicate_of) VALUES($1,'manual','child',5,'A canonical synthetic review with friendly staff','2026-10-06',$2) RETURNING id", [listed, rows.rows[5].id])).rows[0].id;
+    await client.query("INSERT INTO draft_posts(business_id,review_id,quote_text,caption_text) VALUES($1,$2,'Synthetic','Synthetic')", [listed, child]);
+    await client.query("INSERT INTO draft_posts(business_id,review_id,quote_text,caption_text) VALUES($1,$2,'Synthetic','Synthetic')", [listed, rows.rows[1].id]);
+    const listing = await (await listReviews(new NextRequest(`http://localhost/api/reviews?businessId=${listed}`))).json();
+    assert.deepEqual(listing.reviews.map((r: { status: string }) => r.status), ["duplicate", "used", "unsuitable", "too_short", "low_rating", "used", "ready"], "review status mirrors quote eligibility");
+    assert.deepEqual(listing.counts, { ready: 1, used: 2, low_rating: 1, too_short: 1, unsuitable: 1, duplicate: 1 });
   }, async (name, client) => {
     if (name !== "006_review_identity.sql") return;
     const id = (await client.query("INSERT INTO businesses(name,timezone) VALUES('Synthetic duplicate fixture','UTC') RETURNING id")).rows[0].id;
     const reviews = await client.query("INSERT INTO reviews(business_id,source,rating,text,reviewed_at) VALUES($1,'manual',5,'Existing synthetic review with friendly staff','2026-10-01'),($1,'manual',5,'Existing synthetic review with friendly staff','2026-10-01') RETURNING id", [id]);
     await client.query("INSERT INTO draft_posts(business_id,review_id,quote_text,caption_text) VALUES($1,$2,'Synthetic','Synthetic')", [id, reviews.rows[1].id]);
   });
-  console.log("CSV normalization/migration/concurrent import tests passed");
+  console.log("CSV normalization/migration/concurrent import/review status tests passed");
 }
 main().catch(err => { console.error(err); process.exitCode = 1; });

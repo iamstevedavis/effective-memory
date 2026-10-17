@@ -29,8 +29,8 @@ export function useBusiness() {
 const nav: { href: string; label: string; icon: IconName; match: string[] }[] = [
   { href: "/approval", label: "This week", icon: "week", match: ["/approval"] },
   { href: "/schedule", label: "Schedule", icon: "calendar", match: ["/schedule"] },
-  { href: "/import", label: "Reviews", icon: "reviews", match: ["/import", "/quotes"] },
-  { href: "/import#branding", label: "Brand", icon: "palette", match: [] }
+  { href: "/reviews", label: "Reviews", icon: "reviews", match: ["/reviews", "/quotes"] },
+  { href: "/brand", label: "Brand", icon: "palette", match: ["/brand"] }
 ];
 
 function readStored() { try { return localStorage.getItem(storageKey); } catch { return null; } }

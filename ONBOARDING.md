@@ -13,7 +13,7 @@ connection, billing, automatic approval or publishing is required.
 3. Explicitly queue up to three drafts (default weekly target three). Existing jobs
    and onboarding share the same weekly budget. Poll persisted state; auto-retries
    retain successful stages. Exhausted jobs offer bounded owner retry; fix branding
-   via Import settings before retrying rendering failures.
+   on the Brand page before retrying rendering failures.
 4. Open the actual owner-protected images and captions. “Usable previews” appears
    only after each image loads. Review in approval selects the saved business;
    the owner decides what to edit/approve. Real publishing still depends on #29.

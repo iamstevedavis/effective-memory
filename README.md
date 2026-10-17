@@ -139,8 +139,8 @@ Manual and worker generation use the same tone/colors/logo. Regenerate explicitl
 after brand changes. `IMAGE_EVIDENCE_DIR=/tmp/evidence npm test` saves synthetic PNGs.
 
 Quote rendering uses DejaVu with Noto core/CJK fallback fonts in both runtime images, including for Chinese, Japanese, Korean and other supported Unicode scripts. Host installations must install the same font packages before rendering.
-Template settings: Import → Branding settings → Quote text size → sample preview →
-Save. `quote-card-v1` is the single supported template. Standard fits quotes at
+Template settings: Brand (`/brand`) → Quote text size → live preview →
+Save changes. `quote-card-v1` is the single supported template. Standard fits quotes at
 32–48px; Large uses 40–56px and may reject longer quotes. Settings live in
 `businesses.brand_colors` with data-preserving defaults in migration 005; run
 `npm run db:migrate`. Color controls choose readable black/white text automatically.

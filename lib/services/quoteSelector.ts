@@ -7,7 +7,7 @@ type ReviewRow = {
   text: string;
 };
 
-const PROFANITY = ["fuck", "shit", "bitch", "asshole"];
+export const PROFANITY = ["fuck", "shit", "bitch", "asshole"];
 const KEYWORDS = ["food", "service", "clean", "friendly", "staff", "delicious", "fresh"];
 
 function containsProfanity(text: string): boolean {
