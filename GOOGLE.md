@@ -3,7 +3,7 @@
 Status: BLOCKED. No approved developer project, OAuth client/owner grant, verified
 permitted live location, or confirmed review-reuse policy interpretation is
 available in this session. No account configuration, API call, scraping or mock
-connector is presented as completion. This research PR and #46 stay open.
+connector is presented as completion. Issue #46 stays open.
 P2 delivery also waits for the paid-pilot demand evidence specified by the issue.
 
 ## Current official references
