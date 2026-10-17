@@ -1,5 +1,6 @@
 # Development override: hot-reload web (next dev) + source mounts.
 # Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# Requires Docker Compose 2.24.4+ (uses the `!override` merge tag).
 #
 # Note: `environment` lists replace (not merge with) the base file, so all
 # variables are repeated here.
