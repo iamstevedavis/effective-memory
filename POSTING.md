@@ -1,10 +1,10 @@
 # Timezone-aware posting slots (#28)
 
-Run migration 010, configure owner login (AUTH.md), and ensure the durable worker/Redis is running (GENERATION.md). Approval page shows the PostingSlots component for owned businesses.
+Run migration 010, configure owner login (AUTH.md), and ensure the durable worker/Redis is running (GENERATION.md). The Schedule page (`/schedule`) shows the PostingSlots component for the business selected in the app shell.
 
 ## Flow
 
-1. Owner sets weekly posting slots (weekday + local time) in the approval page. Times are stored in business timezone.
+1. Owner sets weekly posting slots (weekday + local time) on the Schedule page. Times are stored in business timezone.
 2. On confirm, the system proposes the next 5 available UTC slots (skipping occupied) using business timezone with correct DST resolution.
 3. Each selected approved draft gets a durable claim on a specific UTC instant before any provider call.
 4. Provider submission is attempted; only verified Buffer "scheduled" receipts confirm the claim and set `draft_posts.status=scheduled`.

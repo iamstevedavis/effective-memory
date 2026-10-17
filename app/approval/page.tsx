@@ -1,278 +1,172 @@
 "use client";
 
-import PostingSlots from "./PostingSlots";
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useBusiness } from "../AppShell";
+import Icon from "../ui/Icon";
+import PostCard, { stageOf, type Draft, type Stage } from "./PostCard";
 
-type Business = { id: number; name: string };
-type Draft = {
-  id: number; version: number;
-  rating?: number; author_name?: string; reviewed_at?: string; source?: string; source_url?: string;
-  provider_state?: string; job_state?: string; error_code?: string;
-  review_id: number | null;
-  quote_text: string;
-  caption_text: string;
-  image_path: string | null;
-  status: string;
-  audit_note?: string | null;
-  scheduled_for?: string | null;
-  created_at: string;
-};
+const conflict = "This post changed somewhere else. We loaded the latest version — try again.";
 
-function extractHashtags(caption: string) {
-  return caption.match(/#[A-Za-z0-9_]+/g) ?? [];
+function weekOf(now = new Date()) {
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  return monday.toLocaleDateString(undefined, { month: "long", day: "numeric" });
 }
 
-function formatScheduledTime(value?: string | null) {
-  if (!value) return "(none)";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString();
-}
+function plural(count: number, word: string) { return `${count} ${word}${count === 1 ? "" : "s"}`; }
 
-function PostPreview({ draft, scheduledPreview, onChanged }: { draft: Draft; scheduledPreview?: string | null; onChanged?: () => void }) {
-  const hashtags = extractHashtags(draft.caption_text);
-  const scheduledTime = scheduledPreview || draft.scheduled_for;
-
-  return (
-    <div style={{ marginTop: 8, padding: 10, border: "1px solid #ddd", borderRadius: 6, background: "#fafafa" }}>
-      <p>Source: {draft.source ?? "unavailable"} · {draft.rating ?? "?"}★ · {draft.author_name ?? "Anonymous"} · {draft.reviewed_at ? new Date(draft.reviewed_at).toLocaleDateString() : "Date unknown"}</p>
-      {draft.source_url ? <a href={draft.source_url} target="_blank" rel="noreferrer">Original review</a> : null}
-      <p>Provider: {draft.provider_state ?? "not submitted"}</p>
-      <DraftControls draft={draft} onChanged={onChanged} />
-      <div style={{ marginBottom: 8 }}>
-        <strong>Image:</strong>
-        {draft.image_path ? (
-          <div style={{ marginTop: 6 }}>
-            <img
-              src={draft.image_path}
-              alt={`Draft ${draft.id} preview`}
-              style={{ width: 220, border: "1px solid #ddd", borderRadius: 4 }}
-            />
-          </div>
-        ) : (
-          <div style={{ marginTop: 4 }}>(none)</div>
-        )}
-      </div>
-
-      <div style={{ marginBottom: 8 }}>
-        <strong>Caption:</strong> {draft.caption_text || "(none)"}
-      </div>
-
-      <div style={{ marginBottom: 8 }}>
-        <strong>Hashtags:</strong> {hashtags.length ? hashtags.join(" ") : "(none)"}
-      </div>
-
-      <div>
-        <strong>Scheduled time:</strong> {formatScheduledTime(scheduledTime)}
-      </div>
-    </div>
-  );
-}
-
-function DraftControls({draft,onChanged}:{draft:Draft;onChanged?:()=>void}) {
-  const [caption,setCaption]=useState(draft.caption_text),[error,setError]=useState("");
-  useEffect(()=>setCaption(draft.caption_text),[draft.caption_text]);
-  async function run(path:string,extra:Record<string,unknown>={}) {
-    const response=await fetch(path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({draftPostId:draft.id,version:draft.version,...extra})});
-    const data=await response.json();setError(response.ok ? data.message ?? "Saved" : data.error ?? "Action failed");onChanged?.();
-  }
-  if(["scheduled","published","archived"].includes(draft.status))return null;
-  return <div><label>Caption for draft {draft.id}<textarea maxLength={200} value={caption} onChange={e=>setCaption(e.target.value)}/></label>
-    <button onClick={()=>run("/api/drafts/caption",{captionText:caption})}>Save caption</button>
-    <button onClick={()=>run("/api/drafts/status",{status:"archived"})}>Archive</button>
-    <button onClick={()=>run("/api/generation/regenerate")}>Regenerate</button>
-    {draft.status==="failed" ? <button onClick={()=>run("/api/generation/retry")}>Retry failed job</button> : null}
-    <p>Generation: {draft.job_state ?? "not queued"} {draft.error_code ?? ""}</p>{error?<p role="status">{error}</p>:null}</div>;
-}
-
-export default function ApprovalPage() {
-  const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [businessId, setBusinessId] = useState("");
-  const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [selected,setSelected]=useState<Record<number,boolean>>({});
+export default function ThisWeekPage() {
+  const { business, status } = useBusiness();
+  const businessId = business?.id;
+  const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [message, setMessage] = useState("");
-  const [notes, setNotes] = useState<Record<number, string>>({});
-  const [scheduledForByDraft, setScheduledForByDraft] = useState<Record<number, string>>({});
+  const [busy, setBusy] = useState(false);
 
-  async function loadBusinesses() {
-    const res = await fetch("/api/businesses");
-    const data = await res.json();
-    setBusinesses(data.businesses ?? []);
-    const requested=new URL(window.location.href).searchParams.get("businessId");
-    if(requested && (data.businesses??[]).some((b:Business)=>String(b.id)===requested))setBusinessId(requested);
-  }
-
-  async function loadDrafts(id: string) {
-    if (!id) return setDrafts([]);
+  const load = useCallback(async (id: number | string) => {
     const res = await fetch(`/api/drafts?businessId=${id}`);
+    if (!res.ok) return;
     const data = await res.json();
     setDrafts(data.drafts ?? []);
-  }
-
-  useEffect(() => {
-    loadBusinesses();
   }, []);
 
   useEffect(() => {
-    loadDrafts(businessId);
-  }, [businessId]);
+    setDrafts(null);
+    if (!businessId) return;
+    void load(businessId);
+    const timer = setInterval(() => void load(businessId), 3000);
+    return () => clearInterval(timer);
+  }, [businessId, load]);
 
-  useEffect(()=>{if(!businessId)return;const timer=setInterval(()=>void loadDrafts(businessId),3000);return ()=>clearInterval(timer);},[businessId]);
-
-  const byStatus = useMemo(() => {
-    return {
-      draft: drafts.filter((d) => d.status === "draft"),
-      approved: drafts.filter((d) => d.status === "approved"),
-      scheduled: drafts.filter((d) => ["scheduled","published"].includes(d.status)),
-      failed: drafts.filter(d=>d.status==="failed")
-    };
+  const groups = useMemo(() => {
+    const by: Record<Stage, Draft[]> = { making: [], failed: [], ready: [], approved: [], scheduled: [], archived: [] };
+    for (const d of drafts ?? []) by[stageOf(d)].push(d);
+    return by;
   }, [drafts]);
 
-  async function updateStatus(draftPostId: number, status: "draft" | "approved") {
-    const res = await fetch("/api/drafts/status", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        draftPostId, version: drafts.find(d=>d.id===draftPostId)?.version,
-        status,
-        auditNote: notes[draftPostId] ?? ""
-      })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setMessage(`Status update failed: ${data.error ?? "unknown error"}`);
-      return;
+  async function run(path: string, draft: Draft, extra: Record<string, unknown> = {}) {
+    setBusy(true);
+    try {
+      const response = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ draftPostId: draft.id, version: draft.version, ...extra }) });
+      const data = await response.json();
+      if (response.ok) {
+        const done: Record<string, string> = {
+          "/api/drafts/caption": "Caption saved",
+          "/api/generation/regenerate": "Making a new version — it’ll appear here shortly",
+          "/api/generation/retry": "Trying again — it’ll appear here shortly"
+        };
+        setMessage(path === "/api/drafts/status"
+          ? { approved: "Approved", archived: "Skipped. You can bring it back below.", draft: "Moved back to review" }[String(extra.status)] ?? "Saved"
+          : done[path] ?? data.message ?? "Saved");
+      } else {
+        setMessage(data.error === "Draft changed; refresh and retry" ? conflict : data.error ?? "That didn’t work — try again");
+      }
+      return response.ok;
+    } catch {
+      setMessage("Connection problem — check your internet and try again");
+      return false;
+    } finally {
+      if (businessId) await load(businessId);
+      setBusy(false);
     }
-
-    setMessage(`Draft #${draftPostId} moved to ${status}`);
-    await loadDrafts(businessId);
   }
 
-  async function setSchedule(draftPostId: number) {
-    const scheduledFor = scheduledForByDraft[draftPostId];
-    if (!scheduledFor) {
-      setMessage("Please choose a datetime first");
-      return;
+  async function approveAll() {
+    setBusy(true);
+    try {
+      const items = groups.ready.map(d => ({ draftPostId: d.id, version: d.version }));
+      const response = await fetch("/api/drafts/bulk", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ items }) });
+      const data = await response.json();
+      if (!data.results) { setMessage(data.error ?? "That didn’t work — try again"); return; }
+      const results = data.results as { draftPostId: number; status: number; error?: string }[];
+      const approved = results.filter(r => r.status === 200).length, failed = results.length - approved;
+      setMessage(`Approved ${plural(approved, "post")}${failed ? `. ${plural(failed, "post")} couldn’t be approved: ${results.filter(r => r.status !== 200).map(r => r.error).join("; ")}` : ""}`);
+    } catch {
+      setMessage("Connection problem — check your internet and try again");
+    } finally {
+      if (businessId) await load(businessId);
+      setBusy(false);
     }
-
-    const iso = new Date(scheduledFor).toISOString();
-    const res = await fetch("/api/drafts/schedule", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ draftPostId, version: drafts.find(d=>d.id===draftPostId)?.version, scheduledFor: iso })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setMessage(`Schedule set failed: ${data.error ?? "unknown error"}`);
-      return;
-    }
-
-    setMessage(`Scheduled time set for draft #${draftPostId}`);
-    await loadDrafts(businessId);
   }
 
-  async function approveSelected() {
-    const items=drafts.filter(d=>selected[d.id]).map(d=>({draftPostId:d.id,version:d.version}));
-    const response=await fetch("/api/drafts/bulk",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({items})});
-    const data=await response.json();setMessage(data.results ? data.results.map((r:{draftPostId:number;status:number;error?:string})=>`#${r.draftPostId}: ${r.status===200?"approved":r.error??"failed"}`).join("; ") : data.error);
-    setSelected({});await loadDrafts(businessId);
+  if (status === "loading" || (business && drafts === null)) return <p className="pl-muted" role="status">Loading your posts…</p>;
+  if (!business) {
+    return (
+      <div className="pl-empty">
+        <h2>Let’s set up your business</h2>
+        <p className="pl-muted">Add your brand and reviews, and we’ll make your first posts.</p>
+        <Link href="/onboarding" className="pl-btn pl-btn-primary pl-btn-lg">Get started</Link>
+      </div>
+    );
   }
+
+  const ready = groups.ready.length, pending = groups.making.length + groups.failed.length;
+  const active = [...groups.ready, ...groups.failed, ...groups.making, ...groups.approved];
+  const title = ready ? `${plural(ready, "post")} need${ready === 1 ? "s" : ""} your OK`
+    : pending ? "Your posts are on the way"
+    : groups.approved.length ? "You’re set for this week"
+    : "Nothing to review yet";
+
   return (
-    <main style={{ fontFamily: "sans-serif", padding: 24, maxWidth: 1100 }}>
-      <h1>Draft approval queue</h1>
+    <>
+      <header className="pl-header">
+        <div className="pl-header-text">
+          <span className="pl-eyebrow">Week of {weekOf()}</span>
+          <h1 className="pl-title">{title}</h1>
+          <p className="pl-lede">Made from reviews your customers left. Approve the ones you like and they’ll be lined up in your schedule.</p>
+        </div>
+        {ready > 1 ? (
+          <button type="button" className="pl-btn pl-btn-primary pl-btn-lg" disabled={busy} onClick={() => void approveAll()}>
+            <Icon name="check" size={18} strokeWidth={2.4} />Approve all {ready}
+          </button>
+        ) : null}
+      </header>
 
-      <section style={{ marginBottom: 16 }}>
-        <select value={businessId} onChange={(e) => setBusinessId(e.target.value)}>
-          <option value="">Select business…</option>
-          {businesses.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-      </section>
+      <p role="status" className="pl-toast">{message}</p>
 
-      {message ? (
-        <p>
-          <strong>{message}</strong>
-        </p>
+      <div className="pl-banner">
+        <Icon name="plug" size={22} />
+        <p><strong>Posting isn’t connected yet.</strong> Approved posts are lined up in your schedule, but nothing goes live until you connect where you post.</p>
+        <Link href="/schedule" className="pl-btn pl-btn-dark">View schedule</Link>
+      </div>
+
+      {active.length ? (
+        <section aria-label="Posts for this week" className="pl-grid">
+          {active.map(d => <PostCard key={d.id} draft={d} run={run} busy={busy} />)}
+        </section>
+      ) : !groups.scheduled.length ? (
+        <div className="pl-empty">
+          <h2>Nothing to review yet</h2>
+          <p className="pl-muted">We make new posts from your reviews each week. Add more reviews to keep them coming.</p>
+          <Link href="/import" className="pl-btn pl-btn-primary"><Icon name="upload" size={16} />Add reviews</Link>
+        </div>
+      ) : (
+        <div className="pl-empty done">
+          <h2>You’re all caught up</h2>
+          <p>Everything is approved or scheduled. New posts arrive next week.</p>
+        </div>
+      )}
+
+      {groups.scheduled.length ? (
+        <section aria-labelledby="scheduled-h" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <h2 id="scheduled-h" className="pl-h2">Scheduled</h2>
+          <div className="pl-grid">{groups.scheduled.map(d => <PostCard key={d.id} draft={d} run={run} busy={busy} />)}</div>
+        </section>
       ) : null}
 
-      <button onClick={approveSelected} disabled={!Object.values(selected).some(Boolean)}>Approve selected</button>
-      <PostingSlots key={businessId} businessId={businessId} approved={byStatus.approved} />
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 16 }}>
-        <div>
-          <h2>Draft</h2>
-          <ul>
-            {byStatus.draft.map((d) => (
-              <li key={d.id} style={{ marginBottom: 14 }}>
-                <div>
-                  #{d.id} {d.quote_text}
-                </div>
-                <label><input type="checkbox" aria-label={`Select draft ${d.id}`} checked={!!selected[d.id]} onChange={e=>setSelected({...selected,[d.id]:e.target.checked})}/>Select</label>
-                <input
-                  placeholder="audit note (optional)"
-                  value={notes[d.id] ?? ""}
-                  onChange={(e) => setNotes((prev) => ({ ...prev, [d.id]: e.target.value }))}
-                  style={{ width: 260, marginTop: 4 }}
-                />
-                <div>
-                  <button onClick={() => updateStatus(d.id, "approved")} style={{ marginTop: 6 }}>
-                    Approve
-                  </button>
-                </div>
-                <PostPreview draft={d} onChanged={()=>loadDrafts(businessId)} />
+      {groups.archived.length ? (
+        <details className="pl-panel">
+          <summary style={{ cursor: "pointer", fontWeight: 600 }}>Skipped posts ({groups.archived.length})</summary>
+          <ul style={{ listStyle: "none", padding: 0, margin: "16px 0 0", display: "flex", flexDirection: "column", gap: 12 }}>
+            {groups.archived.map(d => (
+              <li key={d.id} style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                <span className="pl-muted">“{d.quote_text}” — {d.author_name || "a customer"}</span>
+                <button type="button" className="pl-btn" disabled={busy} onClick={() => void run("/api/drafts/status", d, { status: "draft" })}><Icon name="undo" size={16} />Bring it back</button>
               </li>
             ))}
           </ul>
-        </div>
-
-        <div>
-          <h2>Approved</h2>
-          <p>Scheduling requires a verified Buffer connection. No post is submitted until the integration is configured.</p>
-          <ul>
-            {byStatus.approved.map((d) => (
-              <li key={d.id} style={{ marginBottom: 14 }}>
-                <div>
-                  #{d.id} {d.quote_text}
-                </div>
-                <input
-                  type="datetime-local"
-                  value={scheduledForByDraft[d.id] ?? ""}
-                  onChange={(e) =>
-                    setScheduledForByDraft((prev) => ({ ...prev, [d.id]: e.target.value }))
-                  }
-                  style={{ marginTop: 4 }}
-                />
-                <div>
-                  <button onClick={() => setSchedule(d.id)} style={{ marginTop: 6 }}>
-                    Set schedule
-                  </button>
-                  <button onClick={() => updateStatus(d.id, "draft")} style={{ marginTop: 6, marginLeft: 8 }}>
-                    Send back to draft
-                  </button>
-                </div>
-                <PostPreview draft={d} onChanged={()=>loadDrafts(businessId)} scheduledPreview={scheduledForByDraft[d.id]} />
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-          <h2>Scheduled</h2>
-          <ul>
-            {byStatus.scheduled.map((d) => (
-              <li key={d.id} style={{ marginBottom: 14 }}>
-                <div>
-                  #{d.id} {d.quote_text}
-                </div>
-                <PostPreview draft={d} onChanged={()=>loadDrafts(businessId)} />
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div><h2>Failed</h2><ul>{byStatus.failed.map(d=><li key={d.id}><PostPreview draft={d} onChanged={()=>loadDrafts(businessId)}/></li>)}</ul></div>
-      </section>
-    </main>
+        </details>
+      ) : null}
+    </>
   );
 }
