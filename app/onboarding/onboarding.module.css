@@ -1,0 +1,20 @@
+.frame { min-height: 100vh; max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; background: var(--pl-ground); }
+.header { padding: 20px 20px 0; display: flex; flex-direction: column; gap: 12px; }
+.headerRow { display: flex; align-items: center; justify-content: space-between; min-height: 32px; }
+.progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.progress span { height: 6px; border-radius: 3px; background: var(--pl-line); }
+.progress .done { background: var(--pl-green); }
+.body { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 18px; }
+.stack { display: flex; flex-direction: column; gap: 18px; }
+.title { margin: 0 0 6px; font-size: 30px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; }
+.drop { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 22px 16px; border: 2px dashed #A9B2AA; border-radius: 14px; background: var(--pl-surface); color: var(--pl-green); text-align: center; }
+.drop .pl-input { max-width: 100%; }
+.jobs { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.job { display: flex; gap: 14px; align-items: center; padding: 14px; border-radius: 14px; background: var(--pl-surface); border: 1px solid var(--pl-line); }
+.job img, .thumbPending, .thumbFailed { width: 64px; height: 64px; flex-shrink: 0; border-radius: 10px; }
+.thumbPending { background: var(--pl-line-soft); animation: pl-pulse 1.6s ease-in-out infinite; }
+.thumbFailed { background: #FBE7E1; }
+.carousel { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; }
+.footer { position: sticky; bottom: 0; padding: 12px 20px calc(20px + env(safe-area-inset-bottom)); border-top: 1px solid var(--pl-line); background: var(--pl-surface); display: flex; flex-direction: column; gap: 8px; }
+.footer .pl-btn { width: 100%; }
+@media (prefers-reduced-motion: reduce) { .thumbPending { animation: none; } }

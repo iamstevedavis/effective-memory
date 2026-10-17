@@ -1,8 +1,11 @@
 # Resumable first drafts (#30)
 
 Run migrations through 011, configure owner login (AUTH.md), and start the durable
-worker/Redis (GENERATION.md). Home → Start or resume business onboarding. No Google
-connection, billing, automatic approval or publishing is required.
+worker/Redis (GENERATION.md). Signing in with no business opens `/onboarding`, a
+four-step wizard (brand → reviews → making posts → first posts) that resumes where
+you left off. “+ Add a business” in the sidebar opens `/onboarding?new=1`, which
+starts a fresh setup with its own idempotency key. No Google connection, billing,
+automatic approval or publishing is required.
 
 1. Sign in, enter business name (1–120 characters), IANA timezone, colors and tone.
    Optional PNG/JPEG/WebP logo is validated before saving (256 KB / 4 MP); remote
