@@ -14,6 +14,13 @@ type ImportResult = { imported: number; duplicates: number; rejectedInvalid: num
 
 const jobLabels: Record<string, string> = { pending: "Waiting its turn…", running: "Writing the caption and designing the image…", retry: "Hit a snag — trying again automatically…", complete: "Ready" };
 
+// A successful request can still queue nothing; say why instead of appearing to do nothing.
+const noDrafts: Record<string, string> = {
+  reviews_exhausted: "None of your reviews can become posts yet. Add a few 4–5 star reviews with at least 30 characters, then try again.",
+  quota_met: "You’ve used this week’s posts. New ones can be made next week.",
+  backlog_full: "Posts are still being made. Check back in a minute."
+};
+
 function browserZone() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } }
 
 export default function Onboarding() {
@@ -32,8 +39,10 @@ export default function Onboarding() {
     const params = new URL(window.location.href).searchParams;
     fresh.current = params.get("new") === "1";
     // A new business gets its own idempotency key so it never resumes the previous setup request.
-    key.current = (!fresh.current && sessionStorage.getItem("praise-onboarding-key")) || crypto.randomUUID();
-    sessionStorage.setItem("praise-onboarding-key", key.current);
+    // That key also survives reloads, so a retried create after a lost response can't duplicate it.
+    const slot = fresh.current ? "praise-onboarding-new-key" : "praise-onboarding-key";
+    key.current = sessionStorage.getItem(slot) || crypto.randomUUID();
+    sessionStorage.setItem(slot, key.current);
     setZone(browserZone());
     if (fresh.current) setData({ business: null, reviews: 0, drafts: [] });
     else void load(params.get("businessId") ?? undefined);
@@ -46,6 +55,7 @@ export default function Onboarding() {
     try {
       const response = await fetch("/api/businesses", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, timezone: zone, brandColors: { primary, secondary }, brandTone: tone, logoUrl: logo || null, onboardingKey: key.current }) }); const body = await response.json();
       if (!response.ok) { setMessage(body.error); return; }
+      if (fresh.current) sessionStorage.removeItem("praise-onboarding-new-key");
       await load(body.business.id); setMessage(""); void shell.reload();
     } catch { setMessage("Connection problem. Try again — your setup won’t be duplicated."); } finally { setBusy(false); }
   }
@@ -61,7 +71,9 @@ export default function Onboarding() {
     if (!business) return; setBusy(true);
     try {
       const response = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(draft ? { draftPostId: draft.id, version: draft.version } : { businessId: business.id, limit: 3 }) }), body = await response.json();
-      if (response.ok) { setMessage(""); setImporting(false); setResult(null); } else setMessage(body.error ?? "We couldn’t start making posts. Try again.");
+      if (!response.ok) setMessage(body.error ?? "We couldn’t start making posts. Try again.");
+      else if (!draft && !body.inserted) setMessage(noDrafts[body.reason] ?? "We couldn’t find a review to turn into a post yet.");
+      else { setMessage(""); setImporting(false); setResult(null); }
       await load(business.id);
     } catch { setMessage("Connection problem; refresh progress before trying again."); } finally { setBusy(false); }
   }
@@ -167,7 +179,9 @@ export default function Onboarding() {
             </div>
             <ol aria-live="polite" className={styles.jobs}>
               {data.drafts.map((d, n) => {
-                const failed = d.job_state === "failed" || d.status === "failed";
+                // The worker marks the draft failed while it retries automatically; only a failed job is terminal.
+                const retrying = ["pending", "running", "retry"].includes(d.job_state ?? "");
+                const failed = d.job_state === "failed" || (d.status === "failed" && !retrying);
                 const shown = d.image_path && d.caption_text.trim() && !failed;
                 return (
                   <li key={d.id} className={styles.job}>
