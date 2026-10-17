@@ -85,8 +85,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const business = businesses.find(b => String(b.id) === selectedId) ?? null;
   useEffect(() => { if (business) writeStored(business.id); }, [business]);
 
-  // The landing page is a full-screen flow without app navigation.
-  const bare = pathname === "/";
+  // The landing page and onboarding wizard are full-screen flows without app navigation.
+  const bare = pathname === "/" || pathname.startsWith("/onboarding");
   const value = { status, businesses, business, select, reload };
   if (bare) return <BusinessContext.Provider value={value}>{children}</BusinessContext.Provider>;
 
@@ -99,6 +99,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <aside className="pl-sidebar">
           {brand}
           {status === "ready" ? <BusinessSwitcher id="business-switcher" /> : null}
+          {status === "ready" ? <Link href="/onboarding?new=1" className="pl-small" style={{ padding: "0 4px", fontWeight: 600, marginTop: -16 }}>+ Add a business</Link> : null}
           <nav aria-label="Main" className="pl-nav">
             {nav.map(item => <Link key={item.label} href={item.href} aria-current={current(item)}><Icon name={item.icon} />{item.label}</Link>)}
           </nav>
