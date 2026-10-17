@@ -29,10 +29,33 @@ cp .env.example .env
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
-The dev override runs `next dev` and mounts the repository into the web/worker
-containers as your host user (uid/gid 1000 by default; set `UID`/`GID` in `.env`
-if yours differ). Rendered media goes to `./private-media` instead of the
-`generated_media` volume. Migrations run once before web/worker start.
+Later runs only need `up`; add `--build` after changing `Dockerfile.dev`.
+
+The dev override runs `next dev` and mounts the repository into the
+migrate/web/worker containers as uid/gid 1000 (the image's `node` user), so
+files they write stay owned by you. Rendered media goes to `./private-media`
+instead of the `generated_media` volume.
+
+Startup order is `deps` → `migrate` → `web`/`worker`. `deps` keeps the shared
+`node_modules` volume in sync with `package-lock.json`, running `npm ci` only
+when the lockfile changed, so pulling new dependencies needs no rebuild or
+volume reset. If the stack is already running when dependencies change, run
+`up` again and then `restart web worker`. Migrations run from the mounted
+source, so new migration files apply on the next `up`.
+
+### Troubleshooting
+
+- **`password authentication failed for user "postgres"`**: the
+  `postgres_data` volume keeps the password it was first initialized with;
+  later `POSTGRES_PASSWORD` changes are ignored. Reset it to match `.env`
+  (keeps data):
+  `docker compose exec postgres psql -U postgres -c "ALTER ROLE postgres PASSWORD '<POSTGRES_PASSWORD>'"`
+- **`Module not found` / `Cannot find module` after a pull**: run `up` again so
+  `deps` resyncs, then restart web/worker. As a last resort,
+  `docker compose -f docker-compose.yml -f docker-compose.dev.yml down` and
+  `docker volume rm praise-loop_node_modules`.
+- **`Permission denied` on `.next/`, `public/` or `private-media/`**: files left
+  root-owned by older containers; `sudo chown -R $USER:$USER .` once.
 
 ## Quickstart — all containers (production-style)
 

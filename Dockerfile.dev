@@ -5,7 +5,12 @@
 FROM node:22-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core fonts-noto-core fonts-noto-cjk && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY . .
+# Owned by `node` (uid 1000) so the node_modules volume seeded from this image
+# is writable by the dev containers, which run as the host user.
+RUN chown node:node /app
+USER node
+COPY --chown=node:node package.json package-lock.json ./
+# The stamp lets the compose `deps` service skip `npm ci` until the lockfile changes.
+RUN npm ci && sha256sum package-lock.json > node_modules/.package-lock.sha256
+COPY --chown=node:node . .
 EXPOSE 3000
