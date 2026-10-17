@@ -18,6 +18,10 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     command: ["npm", "run", "dev"]
+    # Run as the host user so files written into the bind mount (.next/,
+    # public/) stay owned by you, not root. Override with UID/GID if yours
+    # isn't 1000 (the image's `node` user).
+    user: "${UID:-1000}:${GID:-1000}"
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-effective_memory}
@@ -36,6 +40,10 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     command: ["npm", "run", "worker"]
+    # Run as the host user so files written into the bind mount (.next/,
+    # public/) stay owned by you, not root. Override with UID/GID if yours
+    # isn't 1000 (the image's `node` user).
+    user: "${UID:-1000}:${GID:-1000}"
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-effective_memory}
