@@ -1,6 +1,6 @@
 import { rasterLogo } from "./logos";
-import { mkdirSync, writeFileSync, renameSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, writeFileSync, renameSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import sharp, { type OverlayOptions } from "sharp";
 import { quoteOptions, type BrandTone } from "../branding";
@@ -18,36 +18,65 @@ function color(value: string | null | undefined, fallback: string) {
   if (!/^#[a-f\d]{6}$/i.test(value)) throw new Error("Use six-digit hexadecimal brand colors");
   return value;
 }
-async function layout(text: string, width: number, height: number, sizes: number[], fill: string, serif: boolean) {
+// Bricolage Grotesque ships in the repo (assets/fonts, SIL OFL) so cards look the same on every
+// host; Pango still falls back to the system Noto fonts for scripts it does not cover.
+const brandFontFile = resolve("assets/fonts/BricolageGrotesque.ttf");
+type Face = { font: string; fontfile?: string };
+function face(weight: "SemiBold" | "Regular", serif = false): Face {
+  if (serif) return { font: "DejaVu Serif" };
+  if (existsSync(brandFontFile)) return { font: `Bricolage Grotesque ${weight === "Regular" ? "" : weight}`.trim(), fontfile: brandFontFile };
+  return { font: weight === "Regular" ? "DejaVu Sans" : "DejaVu Sans Bold" };
+}
+async function layout(text: string, width: number, height: number, sizes: number[], fill: string, type: Face, align: "left" | "right" = "left") {
   if (!text.trim() || text.length > 4000 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(text)) {
     throw new Error("Text is empty, unsupported, or too long; select a shorter verbatim quote");
   }
   for (const size of sizes) {
     const { data, info } = await sharp({ text: {
       text: `<span foreground="${fill}">${escapeMarkup(text)}</span>`,
-      font: `DejaVu ${serif ? "Serif" : "Sans"} ${size}`, width, rgba: true, wrap: "word-char", dpi: 72
+      font: `${type.font} ${size}`, fontfile: type.fontfile, width, align, rgba: true, wrap: "word-char", dpi: 72
     }}).png().toBuffer({ resolveWithObject: true });
-    if (info.width <= width && info.height <= height) return { input: data };
+    if (info.width <= width && info.height <= height) return { input: data, width: info.width, height: info.height };
   }
   throw new Error("Text does not fit safely; select a shorter verbatim quote or business display name");
+}
+function stars(rating: number, fill: string) {
+  const star = "M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z";
+  const paths = Array.from({ length: rating }, (_, n) => `<path transform="translate(${n * 52} 0) scale(1.83)" d="${star}"/>`).join("");
+  return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${rating * 52}" height="44" fill="${fill}">${paths}</svg>`);
 }
 export type RenderParams = {
   draftPostId: number; businessName: string; quoteText: string;
   brandHex?: string | null; secondaryBrandHex?: string | null;
   logoUrl?: string | null; brandTone?: BrandTone; templateConfig?: unknown;
+  rating?: number | null; authorName?: string | null;
 };
+// quote-card-v1: stars, the verbatim quote, then reviewer and business at the bottom left with the
+// logo bottom right, inside 80px safe margins on a 1080px square.
 export async function renderQuoteCard(params: RenderParams) {
   const options = quoteOptions(params.templateConfig);
   const primary = color(params.brandHex, "#1f2937"), secondary = color(params.secondaryBrandHex, "#374151");
   const ink = foreground(primary);
   const logo = await rasterLogo(params.logoUrl);
-  const name = await layout(params.businessName, logo ? 720 : 920, 160, [46, 40, 34, 28], ink, false);
-  const quote = await layout(`“${params.quoteText}”`, 920, 650, options.quoteSize === "large" ? [56, 52, 48, 44, 40] : [48, 44, 40, 36, 32], ink, params.brandTone === "premium");
+  const textWidth = logo ? 740 : 920;
+  const business = await layout(params.businessName, textWidth, 80, [26, 24, 22, 20], ink, face("Regular"));
+  // Reviewer names wrap to two lines and shrink like the quote; like the quote, one that still
+  // doesn't fit is rejected rather than cut or silently dropped.
+  const reviewer = params.authorName?.replace(/\s+/g, " ").trim();
+  const author = reviewer ? await layout(`— ${reviewer}`, textWidth, 90, [34, 30, 26, 22], ink, face("SemiBold")) : null;
+  const businessTop = 1000 - business.height, authorTop = author ? businessTop - 8 - author.height : businessTop;
+  const rating = Number.isInteger(params.rating) && params.rating! >= 1 && params.rating! <= 5 ? params.rating! : 0;
+  // The quote stops above the reviewer block, and above the bottom-right logo when there is one.
+  const quoteTop = rating ? 172 : 100, quoteBottom = Math.min(authorTop, logo ? 860 : 1080) - 40;
+  const quote = await layout(`“${params.quoteText}”`, 920, quoteBottom - quoteTop, options.quoteSize === "large" ? [56, 52, 48, 44, 40] : [48, 44, 40, 36, 32], ink, face("SemiBold", params.brandTone === "premium"));
   const layers: OverlayOptions[] = [
     { input: { create: { width: 1080, height: 14, channels: 4, background: secondary } }, top: 0, left: 0 },
-    { ...name, top: 80, left: 80 }, { ...quote, top: 300, left: 80 }
+    { input: quote.input, top: quoteTop + Math.floor((quoteBottom - quoteTop - quote.height) / 2), left: 80 },
+    { input: business.input, top: businessTop, left: 80 }
   ];
-  if (logo) layers.push({ input: logo, top: 70, left: 860 });
+  if (rating) layers.push({ input: stars(rating, ink === "#ffffff" ? "#F4B731" : "#9A5A0B"), top: 80, left: 80 });
+  if (author) layers.push({ input: author.input, top: authorTop, left: 80 });
+  if (logo) layers.push({ input: logo, top: 860, left: 860 });
   const png = await sharp({ create: { width: 1080, height: 1080, channels: 4, background: primary } }).composite(layers).png().toBuffer();
   return png;
 }

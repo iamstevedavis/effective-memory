@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-co
 COPY --from=builder /app/dist-worker ./dist-worker
 # migrate.js reads db/migrations relative to the working directory.
 COPY --from=builder /app/db ./db
+# Quote-card font, resolved from the working directory by the image renderer.
+COPY --from=builder /app/assets ./assets
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 CMD ["node", "dist-worker/worker/index.js"]

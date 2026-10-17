@@ -8,7 +8,7 @@ async function handlePOST(req: NextRequest) {
     if (!validBrandConfig(body.brandColors)) throw new Error("Invalid configuration");
     const colors = parseBrandColors(body.brandColors);
     const png = await renderQuoteCard({ draftPostId: 0, businessName: "Sample business",
-      quoteText: "A warm welcome and thoughtful service. We look forward to coming back!",
+      quoteText: "A warm welcome and thoughtful service. We look forward to coming back!", rating: 5, authorName: "A happy customer",
       brandHex: colors.primary, secondaryBrandHex: colors.secondary, templateConfig: colors,
       brandTone: isBrandTone(body.brandTone) ? body.brandTone : "friendly" });
     return new NextResponse(new Uint8Array(png), { headers: { "Content-Type": "image/png", "Cache-Control": "no-store" } });
