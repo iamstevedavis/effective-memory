@@ -41,7 +41,7 @@ async function main(){
         await page.getByRole("heading",{name:"3 usable draft previews"}).waitFor();
         const images=page.getByRole("img",{name:/Onboarding draft/});assert.equal(await images.count(),3);for(const image of await images.all())assert.equal(await image.evaluate(e=>(e as HTMLImageElement).naturalWidth),1080);
         const seconds=Number(((Date.now()-started)/1000).toFixed(2));
-        await page.getByRole("link",{name:"Review in approval"}).click();await page.getByRole("heading",{name:"Draft approval queue"}).waitFor();await page.getByLabel(/^Select draft /).first().waitFor();
+        await page.getByRole("link",{name:"Review in approval"}).click();await page.getByRole("heading",{name:/need your OK/}).waitFor();await page.getByLabel(/^Caption for draft /).first().waitFor();
         assert.deepEqual(pageErrors,[]);assert.equal(calls,4,"one fixture failure plus three successful caption stages");
         assert.equal((await c.query("SELECT count(*) FROM businesses")).rows[0].count,"1");assert.equal((await c.query("SELECT count(*) FROM draft_posts")).rows[0].count,"3");
         assert.equal((await c.query("SELECT allocated FROM generation_periods WHERE business_id=$1",[bid])).rows[0].allocated,3);

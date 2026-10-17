@@ -21,23 +21,23 @@ async function main(){
       const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH==="playwright"?undefined:process.env.CHROMIUM_PATH??"/usr/bin/chromium",args:["--no-sandbox"]});
       try{
         const context=await browser.newContext({timezoneId:"America/Los_Angeles"});await context.addCookies([{name:"next-auth.session-token",value:"slots-browser-session",url:base}]);
-        const page=await context.newPage();await page.goto(`${base}/approval`);await page.getByRole("combobox").selectOption(String(bid));
+        const page=await context.newPage();await page.goto(`${base}/schedule`);await page.getByRole("combobox",{name:"Business"}).selectOption(String(bid));
         await page.getByLabel("Tue local time").fill("11:15");
         const save=page.waitForResponse(r=>r.url().endsWith("/api/posting-slots")&&r.request().method()==="PATCH");await page.getByRole("button",{name:"Save posting schedule"}).click();assert.equal((await save).status(),200);
-        await page.getByText(/existing submitted posts keep their UTC times/).waitFor();
+        await page.getByText(/Posting times saved/).waitFor();
         const calendar=page.locator("ol");assert.match(await calendar.innerText(),/America\/New_York/);assert.match(await calendar.innerText(),/UTC/);
         await page.getByLabel(new RegExp(`Approved #${id}:`)).check();
         const assign=page.waitForResponse(r=>r.url().endsWith("/api/posting-slots/assign"));await page.getByRole("button",{name:"Confirm selected posting slots"}).click();
         const data=await (await assign).json();assert.equal(data.results[0].status,503);await page.getByText(/Buffer connection not configured\/verified/).waitFor();
-        await page.reload();await page.getByRole("combobox").selectOption(String(bid));await page.getByLabel("Tue local time").waitFor();assert.equal(await page.getByLabel("Tue local time").inputValue(),"11:15");
+        await page.reload();await page.getByRole("combobox",{name:"Business"}).selectOption(String(bid));await page.getByLabel("Tue local time").waitFor();assert.equal(await page.getByLabel("Tue local time").inputValue(),"11:15");
         // Hold a previous business response until a new business has loaded.
         let release!:()=>void,started!:()=>void;
         const held=new Promise<void>(resolve=>{release=resolve;}),seen=new Promise<void>(resolve=>{started=resolve;});
         await page.route(`**/api/posting-slots?businessId=${bid}`,async route=>{const response=await route.fetch();started();await held;await route.fulfill({response});});
-        await page.getByRole("combobox").selectOption(String(other));
+        await page.getByRole("combobox",{name:"Business"}).selectOption(String(other));
         await page.getByLabel("Tue local time").waitFor();
-        await page.getByRole("combobox").selectOption(String(bid));await seen;
-        await page.getByRole("combobox").selectOption(String(other));
+        await page.getByRole("combobox",{name:"Business"}).selectOption(String(bid));await seen;
+        await page.getByRole("combobox",{name:"Business"}).selectOption(String(other));
         await page.getByLabel("Tue local time").waitFor();
         const stale=page.waitForResponse(r=>r.url().endsWith(`/api/posting-slots?businessId=${bid}`));release();await stale;
         await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
