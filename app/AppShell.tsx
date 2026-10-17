@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signIn, signOut } from "next-auth/react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import Icon, { type IconName } from "./ui/Icon";
@@ -36,14 +36,22 @@ const nav: { href: string; label: string; icon: IconName; match: string[] }[] = 
 function readStored() { try { return localStorage.getItem(storageKey); } catch { return null; } }
 function writeStored(id: number | string) { try { localStorage.setItem(storageKey, String(id)); } catch { /* per-viewer convenience only */ } }
 
-function BusinessSwitcher({ id }: { id: string }) {
+// On phones the sidebar is hidden, so the switcher also carries the account actions.
+function BusinessSwitcher({ id, withActions = false }: { id: string; withActions?: boolean }) {
   const { businesses, business, select } = useBusiness();
+  const router = useRouter();
   if (!businesses.length) return null;
+  function change(value: string) {
+    if (value === "__add") router.push("/onboarding?new=1");
+    else if (value === "__signout") void signOut({ callbackUrl: "/" });
+    else select(value);
+  }
   return (
     <div className="pl-switcher">
       <label htmlFor={id}>Business</label>
-      <select id={id} className="pl-select" value={business?.id ?? ""} onChange={e => select(e.target.value)}>
+      <select id={id} className="pl-select" value={business?.id ?? ""} onChange={e => change(e.target.value)}>
         {businesses.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        {withActions ? <optgroup label="Account"><option value="__add">+ Add a business</option><option value="__signout">Sign out</option></optgroup> : null}
       </select>
     </div>
   );
@@ -113,7 +121,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {brand}
           {status === "signed-out"
             ? <button type="button" className="pl-btn pl-btn-dark" onClick={() => signIn("github")}>Sign in</button>
-            : status === "ready" ? <BusinessSwitcher id="business-switcher-phone" /> : null}
+            : status === "ready" ? <BusinessSwitcher id="business-switcher-phone" withActions /> : null}
         </header>
         <main className="pl-main">
           <div className="pl-container">

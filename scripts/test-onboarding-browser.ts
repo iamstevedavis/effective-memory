@@ -45,7 +45,8 @@ async function main(){
         assert.deepEqual(pageErrors,[]);assert.equal(calls,4,"one fixture failure plus three successful caption stages");
         assert.equal((await c.query("SELECT count(*) FROM businesses")).rows[0].count,"1");assert.equal((await c.query("SELECT count(*) FROM draft_posts")).rows[0].count,"3");
         assert.equal((await c.query("SELECT allocated FROM generation_periods WHERE business_id=$1",[bid])).rows[0].allocated,3);
-        await page.goto(`${base}/onboarding?new=1`);await page.getByLabel("Business name",{exact:true}).fill("Second synthetic café");
+        await page.setViewportSize({width:390,height:844});await page.goto(`${base}/approval`);
+        await page.getByRole("combobox",{name:"Business"}).selectOption({label:"+ Add a business"});await page.waitForURL(/\/onboarding\?new=1$/);await page.getByLabel("Business name",{exact:true}).fill("Second synthetic café");
         const second=page.waitForResponse(r=>r.url().endsWith("/api/businesses")&&r.request().method()==="POST");await page.getByRole("button",{name:"Continue",exact:true}).click();
         const secondBody=await (await second).json();assert.notEqual(secondBody.business.id,bid,"Add a business starts a new setup instead of resuming");
         await page.getByRole("heading",{name:"Bring in your reviews"}).waitFor();assert.equal((await c.query("SELECT count(*) FROM businesses")).rows[0].count,"2");
