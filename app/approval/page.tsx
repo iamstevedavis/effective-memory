@@ -136,9 +136,9 @@ export default function ThisWeekPage() {
         </section>
       ) : !groups.scheduled.length ? (
         <div className="pl-empty">
-          <h2>Nothing to review yet</h2>
+          <h2>Your next posts start with reviews</h2>
           <p className="pl-muted">We make new posts from your reviews each week. Add more reviews to keep them coming.</p>
-          <Link href="/import" className="pl-btn pl-btn-primary"><Icon name="upload" size={16} />Add reviews</Link>
+          <Link href="/reviews" className="pl-btn pl-btn-primary"><Icon name="upload" size={16} />Add reviews</Link>
         </div>
       ) : (
         <div className="pl-empty done">

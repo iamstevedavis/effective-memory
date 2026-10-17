@@ -1,6 +1,6 @@
 "use client";
 import { FormEvent,useEffect,useRef,useState } from "react";
-import BrandPreview from "../import/BrandPreview";
+import BrandPreview from "../brand/BrandPreview";
 type Draft={id:string;version:number;quote_text:string;caption_text:string;image_path:string|null;status:string;job_state?:string;error_code?:string};
 type Progress={business:{id:string;name:string;timezone:string;weekly_target:number}|null;reviews:number;drafts:Draft[];period?:{reason:string;allocated:number;target:number}};
 export default function Onboarding(){
@@ -42,7 +42,7 @@ export default function Onboarding(){
       <label>Primary color<input type="color" value={primary} onChange={e=>setPrimary(e.target.value)}/></label><label>Secondary color<input type="color" value={secondary} onChange={e=>setSecondary(e.target.value)}/></label>
       <label>Brand tone<select value={tone} onChange={e=>setTone(e.target.value)}><option>friendly</option><option>premium</option><option>playful</option></select></label>
       <BrandPreview primary={primary} secondary={secondary} quoteSize="standard" tone={tone}/><button disabled={busy}>Save and continue</button></form>:null}
-    {business?<><h2>{business.name} · {business.timezone}</h2><a href="/import">Adjust saved brand settings</a>
+    {business?<><h2>{business.name} · {business.timezone}</h2><a href="/brand">Adjust saved brand settings</a>
       {data.reviews===0||importing?<form onSubmit={importCsv}><h2>2. Import reviews</h2><p>CSV: rating, text, reviewed_at (UTC); optional author_name, source_review_id, source_url. 1 MB / 1000 rows maximum.</p><a href="/onboarding-example.csv" download>Download synthetic sample CSV</a><label>Review CSV<input type="file" name="file" accept=".csv,text/csv" required/></label><button disabled={busy}>Import reviews</button></form>:<button onClick={()=>setImporting(true)}>Import more reviews</button>}
       {data.reviews>0&&!importing?<section><h2>3. Generate up to {target} previews</h2><p>{data.reviews} imported reviews. At least {target} eligible 4–5 star reviews of 30+ characters are needed. Exhausted reviews need more eligible input.</p>
         <button disabled={busy} onClick={()=>void generate()}>Queue first drafts</button><p>Weekly generation: {data.period?.reason??"not requested"}. First drafts count toward the same weekly quota.</p>
