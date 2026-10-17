@@ -47,6 +47,7 @@ assert.equal(report([atWindowEnd]).returnedInWeekTwo, false);
 const beforeWeekTwo = { ...withoutReturn, events: [...withoutReturn.events, { type: "returned" as const, at: "2026-10-07T23:59:59.999Z" }] };
 assert.equal(report([beforeWeekTwo]).returnedInWeekTwo, false);
 assert.equal(report([{ ...business, events: [{ type: "generation_cost", at: start, id: "zero", usd: 0 }] }]).generationCostUsd, 0);
+assert.equal(report([{ ...business, events: [{ type: "generation_cost", at: start, id: "tiny", usd: 0.0000001 }] }]).generationCostUsd, 0.0000001);
 assert.equal(pilotReport([business], ["pilot-a"], "2026-10-02T00:00:00.000Z", end)[0].firstDraftMinutes, null);
 assert.equal(report([{ ...business, events: events.filter(e => e.type !== "draft_complete") }]).firstDraftMinutes, null);
 assert.equal(report([{ ...business, events: events.map(e => e.type === "approved" ? { ...e, unedited: undefined } : e) }]).approvedWithoutEditsRate, null);

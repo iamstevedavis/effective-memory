@@ -73,7 +73,7 @@ export function pilotReport(businesses: PilotBusiness[], authorized: string[], s
       sessions, unmatchedSessionEnds: ends.filter(e => !starts.some(s => s.id === e.id && s.ms <= e.ms)).length,
       scheduled: unique("scheduled").length, published: unique("published").length,
       returnedInWeekTwo: returned ? true : observedSecondWeek ? false : null,
-      generationCostUsd: costs.length ? Number(costs.reduce((sum, e) => sum + e.usd!, 0).toFixed(6)) : null,
+      generationCostUsd: costs.length ? Number(costs.reduce((sum, e) => sum + e.usd!, 0).toPrecision(12)) : null,
       costReceiptCount: costs.length
     };
   });
