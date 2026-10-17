@@ -27,7 +27,7 @@ async function handlePOST(req: NextRequest) {
       `SELECT d.id, d.quote_text, b.name AS business_name, b.brand_colors, b.logo_url, b.brand_tone, r.rating, r.author_name
        FROM draft_posts d
        JOIN businesses b ON b.id = d.business_id
-       LEFT JOIN reviews r ON r.id = d.review_id
+       LEFT JOIN reviews r ON r.id = d.review_id AND r.business_id = d.business_id
        WHERE d.id = $1
        LIMIT 1`,
       [draftPostId]
