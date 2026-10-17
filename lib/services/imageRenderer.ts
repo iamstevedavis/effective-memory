@@ -66,7 +66,8 @@ export async function renderQuoteCard(params: RenderParams) {
   const author = reviewer ? await layout(`— ${reviewer}`, textWidth, 90, [34, 30, 26, 22], ink, face("SemiBold")) : null;
   const businessTop = 1000 - business.height, authorTop = author ? businessTop - 8 - author.height : businessTop;
   const rating = Number.isInteger(params.rating) && params.rating! >= 1 && params.rating! <= 5 ? params.rating! : 0;
-  const quoteTop = rating ? 172 : 100, quoteBottom = authorTop - 40;
+  // The quote stops above the reviewer block, and above the bottom-right logo when there is one.
+  const quoteTop = rating ? 172 : 100, quoteBottom = Math.min(authorTop, logo ? 860 : 1080) - 40;
   const quote = await layout(`“${params.quoteText}”`, 920, quoteBottom - quoteTop, options.quoteSize === "large" ? [56, 52, 48, 44, 40] : [48, 44, 40, 36, 32], ink, face("SemiBold", params.brandTone === "premium"));
   const layers: OverlayOptions[] = [
     { input: { create: { width: 1080, height: 14, channels: 4, background: secondary } }, top: 0, left: 0 },
