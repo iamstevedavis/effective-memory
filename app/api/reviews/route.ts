@@ -1,6 +1,7 @@
 import { ownerRoute } from "../../../lib/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "../../../lib/db";
+import { PROFANITY } from "../../../lib/services/quoteSelector";
 
 async function handleGET(req: NextRequest) {
   const businessId = req.nextUrl.searchParams.get("businessId");
@@ -8,11 +9,14 @@ async function handleGET(req: NextRequest) {
     return NextResponse.json({ error: "businessId is required" }, { status: 400 });
   }
 
-  // Mirrors the quote selector's eligibility rules so owners can see why a review is or isn't used.
+  // Mirrors the quote selector's exclusions so owners can see why a review is or isn't used:
+  // a draft on the review or any of its duplicates uses it up, and blocked words rule it out.
   const statusSql = `CASE WHEN r.duplicate_of IS NOT NULL THEN 'duplicate'
-      WHEN EXISTS (SELECT 1 FROM draft_posts d WHERE d.review_id = r.id) THEN 'used'
+      WHEN EXISTS (SELECT 1 FROM draft_posts d WHERE d.review_id = r.id
+        OR d.review_id IN (SELECT id FROM reviews WHERE duplicate_of = r.id)) THEN 'used'
       WHEN r.rating < 4 THEN 'low_rating'
       WHEN length(btrim(regexp_replace(r.text, '\\s+', ' ', 'g'))) < 30 THEN 'too_short'
+      WHEN lower(r.text) ~ '${PROFANITY.join("|")}' THEN 'unsuitable'
       ELSE 'ready' END`;
   const result = await query<{
     id: number;

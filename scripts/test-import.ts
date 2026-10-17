@@ -54,11 +54,14 @@ async function main() {
     const listed = (await client.query("INSERT INTO businesses(name,timezone) VALUES('Synthetic status fixture','UTC') RETURNING id")).rows[0].id;
     const rows = await client.query(`INSERT INTO reviews(business_id,source,source_review_id,rating,text,reviewed_at) VALUES
       ($1,'manual','ready',5,'A lovely synthetic visit with friendly staff','2026-10-01'),($1,'manual','used',5,'Another lovely synthetic visit with friendly staff','2026-10-02'),
-      ($1,'manual','low',3,'An average synthetic visit with slow staff today','2026-10-03'),($1,'manual','short',5,'So   good!!','2026-10-04') RETURNING id`, [listed]);
+      ($1,'manual','low',3,'An average synthetic visit with slow staff today','2026-10-03'),($1,'manual','short',5,'So   good!!','2026-10-04'),
+      ($1,'manual','rude',5,'The SHITtiest parking but a lovely synthetic visit','2026-10-05'),($1,'manual','canon',5,'A canonical synthetic review with friendly staff','2026-10-06') RETURNING id`, [listed]);
+    const child = (await client.query("INSERT INTO reviews(business_id,source,source_review_id,rating,text,reviewed_at,duplicate_of) VALUES($1,'manual','child',5,'A canonical synthetic review with friendly staff','2026-10-06',$2) RETURNING id", [listed, rows.rows[5].id])).rows[0].id;
+    await client.query("INSERT INTO draft_posts(business_id,review_id,quote_text,caption_text) VALUES($1,$2,'Synthetic','Synthetic')", [listed, child]);
     await client.query("INSERT INTO draft_posts(business_id,review_id,quote_text,caption_text) VALUES($1,$2,'Synthetic','Synthetic')", [listed, rows.rows[1].id]);
     const listing = await (await listReviews(new NextRequest(`http://localhost/api/reviews?businessId=${listed}`))).json();
-    assert.deepEqual(listing.reviews.map((r: { status: string }) => r.status), ["too_short", "low_rating", "used", "ready"], "review status mirrors quote eligibility");
-    assert.deepEqual(listing.counts, { ready: 1, used: 1, low_rating: 1, too_short: 1 });
+    assert.deepEqual(listing.reviews.map((r: { status: string }) => r.status), ["duplicate", "used", "unsuitable", "too_short", "low_rating", "used", "ready"], "review status mirrors quote eligibility");
+    assert.deepEqual(listing.counts, { ready: 1, used: 2, low_rating: 1, too_short: 1, unsuitable: 1, duplicate: 1 });
   }, async (name, client) => {
     if (name !== "006_review_identity.sql") return;
     const id = (await client.query("INSERT INTO businesses(name,timezone) VALUES('Synthetic duplicate fixture','UTC') RETURNING id")).rows[0].id;

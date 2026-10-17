@@ -13,10 +13,11 @@ const statusLabels: Record<string, [string, string]> = {
   used: ["pl-badge-scheduled", "In a post"],
   duplicate: ["pl-badge-archived", "Duplicate"],
   low_rating: ["pl-badge-archived", "Under 4 stars"],
-  too_short: ["pl-badge-archived", "Too short"]
+  too_short: ["pl-badge-archived", "Too short"],
+  unsuitable: ["pl-badge-archived", "Not suitable"]
 };
 const filters: [Filter, string][] = [["all", "All"], ["ready", "Ready"], ["used", "Used"], ["unfit", "Not a fit"]];
-const unfit = ["duplicate", "low_rating", "too_short"];
+const unfit = ["duplicate", "low_rating", "too_short", "unsuitable"];
 
 function stars(rating: number) { return "★★★★★".slice(0, rating) + "☆☆☆☆☆".slice(0, 5 - rating); }
 
@@ -30,6 +31,8 @@ export default function ReviewsPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const currentId = useRef(businessId);
+  currentId.current = businessId;
 
   const load = useCallback(async (id: number | string, isCurrent: () => boolean = () => true) => {
     const response = await fetch(`/api/reviews?businessId=${id}`);
@@ -50,6 +53,7 @@ export default function ReviewsPage() {
   async function importCsv(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!businessId) return;
+    const importedFor = businessId, stillCurrent = () => currentId.current === importedFor;
     const form = e.currentTarget;
     const formData = new FormData(form);
     formData.set("businessId", String(businessId));
@@ -57,12 +61,14 @@ export default function ReviewsPage() {
     try {
       const response = await fetch("/api/reviews/import", { method: "POST", body: formData });
       const data = await response.json();
+      // The owner may have switched business while the upload ran; don't show A's results under B.
+      if (!stillCurrent()) return;
       if (!response.ok) { setResult(null); setMessage(`Import failed: ${data.error ?? "unknown error"}`); return; }
       setResult(data); setMessage("");
       form.reset();
-      await load(businessId);
+      await load(importedFor, stillCurrent);
     } catch {
-      setMessage("Connection problem. Importing the same file again is safe — duplicates are skipped.");
+      if (stillCurrent()) setMessage("Connection problem. Importing the same file again is safe — duplicates are skipped.");
     } finally { setBusy(false); }
   }
 
