@@ -26,6 +26,8 @@ async function main() {
     const changed = await renderDraftImage({ ...base, draftPostId: 902, quoteText: "A different synthetic quote" });
     assert.notDeepEqual(bytes, readFileSync(changed.fileSystemPath));
     await renderDraftImage({ ...base, draftPostId: 903, logoUrl: null, rating: null, authorName: null, brandHex: "#000000", businessName: "A long synthetic business name with several words".repeat(2), quoteText: "A beautifully welcoming place. ".repeat(22) });
+    await renderDraftImage({ ...base, draftPostId: 904, authorName: "Maximiliana Alexandrina\nWolfeschlegelsteinhausen-Bergerdorff of Synthetic Upon Avon" });
+    await assert.rejects(renderDraftImage({ ...base, authorName: "Synthetic reviewer ".repeat(20) }), /does not fit/, "an unfit reviewer name is rejected, not dropped");
     await assert.rejects(renderDraftImage({ ...base, logoUrl: "http://169.254.169.254/secret" }), /remote URLs/);
     await assert.rejects(renderDraftImage({ ...base, logoUrl: "data:image/png;base64,YWJj" }), /Invalid raster/);
     await assert.rejects(renderDraftImage({ ...base, quoteText: "word ".repeat(1500) }), /too long/);

@@ -60,9 +60,10 @@ export async function renderQuoteCard(params: RenderParams) {
   const logo = await rasterLogo(params.logoUrl);
   const textWidth = logo ? 740 : 920;
   const business = await layout(params.businessName, textWidth, 80, [26, 24, 22, 20], ink, face("Regular"));
-  const author = params.authorName?.trim()
-    ? await layout(`— ${params.authorName.trim()}`, textWidth, 50, [34, 30, 26], ink, face("SemiBold")).catch(() => null)
-    : null;
+  // Reviewer names wrap to two lines and shrink like the quote; like the quote, one that still
+  // doesn't fit is rejected rather than cut or silently dropped.
+  const reviewer = params.authorName?.replace(/\s+/g, " ").trim();
+  const author = reviewer ? await layout(`— ${reviewer}`, textWidth, 90, [34, 30, 26, 22], ink, face("SemiBold")) : null;
   const businessTop = 1000 - business.height, authorTop = author ? businessTop - 8 - author.height : businessTop;
   const rating = Number.isInteger(params.rating) && params.rating! >= 1 && params.rating! <= 5 ? params.rating! : 0;
   const quoteTop = rating ? 172 : 100, quoteBottom = authorTop - 40;
