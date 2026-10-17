@@ -1,3 +1,4 @@
+import { rasterLogo } from "./logos";
 import { mkdirSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
@@ -39,21 +40,7 @@ export async function renderQuoteCard(params: RenderParams) {
   const options = quoteOptions(params.templateConfig);
   const primary = color(params.brandHex, "#1f2937"), secondary = color(params.secondaryBrandHex, "#374151");
   const ink = foreground(primary);
-  let logo: Buffer | undefined;
-  if (params.logoUrl) {
-    // Only embedded, bounded raster uploads: no URL fetching, redirects, SVG, or SSRF surface.
-    if (params.logoUrl.length > 350000 || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(params.logoUrl)) {
-      throw new Error("Logo must be a PNG/JPEG/WebP data upload under 256 KB; remote URLs are unsupported");
-    }
-    const bytes = Buffer.from(params.logoUrl.split(",")[1], "base64");
-    if (bytes.length > 256000) throw new Error("Logo exceeds 256 KB");
-    try {
-      const image = sharp(bytes, { limitInputPixels: 4000000, animated: false });
-      const metadata = await image.metadata();
-      if (!["png", "jpeg", "webp"].includes(metadata.format ?? "") || (metadata.pages ?? 1) > 1) throw new Error();
-      logo = await image.resize(140, 140, { fit: "contain", background: "#ffffff" }).png().toBuffer();
-    } catch { throw new Error("Invalid raster logo; upload a valid nonanimated image under 4 megapixels"); }
-  }
+  const logo = await rasterLogo(params.logoUrl);
   const name = await layout(params.businessName, logo ? 720 : 920, 160, [46, 40, 34, 28], ink, false);
   const quote = await layout(`“${params.quoteText}”`, 920, 650, options.quoteSize === "large" ? [56, 52, 48, 44, 40] : [48, 44, 40, 36, 32], ink, params.brandTone === "premium");
   const layers: OverlayOptions[] = [

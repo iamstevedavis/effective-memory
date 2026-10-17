@@ -102,8 +102,53 @@ skip honestly and exits 0, so CI stays green without credentials.
 - Scheduling is blocked pending verified owner/provider setup: [SCHEDULER.md](SCHEDULER.md)
 - Durable weekly worker setup and recovery: [GENERATION.md](GENERATION.md)
 - Manual CSV review import only
-- No authentication/authorization yet
+- Owner authentication and operational setup: [AUTH.md](AUTH.md)
 
-Pilot preparation, manual measurements, and privacy-safe reporting: [PILOT.md](PILOT.md).
+Quote-card rendering uses Sharp/Pango measured wrapping (DejaVu Sans/Serif), a
+1080px canvas, 80px safe margins, and automatic black/white contrast. Names fit
+within 160px and quotes within 650px at 32–48px; unfit text is rejected verbatim,
+never truncated. Supply optional logos as PNG/JPEG/WebP base64 data URLs (256 KB,
+4 MP maximum); remote URLs/SVG/animation are rejected without network requests.
+Manual and worker generation use the same tone/colors/logo. Regenerate explicitly
+after brand changes. `IMAGE_EVIDENCE_DIR=/tmp/evidence npm test` saves synthetic PNGs.
 
-Google review sync is not implemented or live-verified: [feasibility, policy questions and owner setup blockers](GOOGLE.md). Manual CSV remains supported.
+Quote rendering uses DejaVu with Noto core/CJK fallback fonts in both runtime images, including for Chinese, Japanese, Korean and other supported Unicode scripts. Host installations must install the same font packages before rendering.
+Template settings: Import → Branding settings → Quote text size → sample preview →
+Save. `quote-card-v1` is the single supported template. Standard fits quotes at
+32–48px; Large uses 40–56px and may reject longer quotes. Settings live in
+`businesses.brand_colors` with data-preserving defaults in migration 005; run
+`npm run db:migrate`. Color controls choose readable black/white text automatically.
+Saving settings never changes existing draft images; explicitly regenerate and
+review a new image. `TEST_DATABASE_URL=postgres://... npm test` also verifies real
+Postgres migration preservation and settings round-trip in a disposable schema.
+
+CSV imports are limited to 1 MB / 1000 logical rows; quoted multiline cells are
+supported. Optional `source_review_id` and `source_url` preserve manual-source
+provenance. Reimports use a database-unique per-business/source ID, or a normalized
+(rating/text/author/UTC millisecond date) fingerprint. Fingerprints cannot identify
+edited reviews without stable IDs. Original text is retained. Migration 006 keeps
+all historical duplicates and draft references, marks extra rows `duplicate_of`,
+and prevents those rows entering new quote selection. UI reports imported,
+duplicate, empty, invalid and storage-failed rows, with at most 20 redacted errors.
+Ownership enforcement is supplied by #42 before any customer exposure.
+
+Before customer access, configure owner login and explicitly claim any legacy data as described in [AUTH.md](AUTH.md).
+
+Approval supports inline caption edits, per-item bulk approval, archive, and persisted
+job retries. Every draft mutation requires its current `version`; refresh on 409.
+Approval requires nonempty caption and a decoded, available 1080px PNG. Edits and
+regeneration clear approval; scheduled/published items require provider operations.
+Migration 009 adds archived status, revisions and append-only actor/time/reason events.
+Generated PNGs now use immutable content hashes; historical images remain compatible.
+After building, run `TEST_BROWSER=1 TEST_DATABASE_URL=... npx ts-node scripts/test-approval-browser.ts`
+with Chromium installed (`CHROMIUM_PATH` defaults to /usr/bin/chromium). Uses synthetic
+sessions and fixtures only, with no external AI/social calls. Rollback requires
+stopping writes first; retain audit events, revision columns, and immutable media.
+
+Real publishing is not configured: [Buffer feasibility and exact setup blockers](SCHEDULER.md). The legacy scheduling CLI fails closed.
+
+Timezone-aware weekly planning, DST rules, explicit bulk confirmation and provider
+limitations: [POSTING.md](POSTING.md). Apply migration 010 before running this UI.
+
+Start/resume setup at `/onboarding`; [ONBOARDING.md](ONBOARDING.md) covers imports,
+recovery, configuration, synthetic timing evidence and the pending live/manual check.

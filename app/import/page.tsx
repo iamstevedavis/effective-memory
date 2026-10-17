@@ -97,8 +97,20 @@ export default function ImportPage() {
     setSettingsTone(selectedBusiness.brand_tone ?? "friendly");
   }, [selectedBusiness]);
 
+  function uploadLogo(file: File | undefined, save: (value: string) => void) {
+    if (!file) return;
+    if (file.size > 256000 || !["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      setResult("Choose a PNG/JPEG/WebP logo under 256 KB"); return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => save(String(reader.result));
+    reader.onerror = () => setResult("Logo could not be read");
+    reader.readAsDataURL(file);
+  }
+
   async function createBusiness(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const form = e.currentTarget;
     const name = newBusinessName.trim();
     if (!name) return;
 
@@ -122,6 +134,7 @@ export default function ImportPage() {
       return;
     }
 
+    form.reset();
     setNewBusinessName("");
     setNewBusinessLogoUrl("");
     setNewBusinessPrimaryColor(DEFAULT_PRIMARY);
@@ -196,11 +209,10 @@ export default function ImportPage() {
             onChange={(e) => setNewBusinessName(e.target.value)}
             placeholder="Business name"
           />
-          <input
-            value={newBusinessLogoUrl}
-            onChange={(e) => setNewBusinessLogoUrl(e.target.value)}
-            placeholder="Logo URL (optional)"
-          />
+          <label>New business logo (optional, PNG/JPEG/WebP under 256 KB)
+            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => uploadLogo(e.target.files?.[0], setNewBusinessLogoUrl)} />
+          </label>
+          {newBusinessLogoUrl && <img src={newBusinessLogoUrl} alt="New business logo preview" width={64} />}
           <label>
             Primary color{" "}
             <input
@@ -236,7 +248,7 @@ export default function ImportPage() {
 
       <section style={{ marginBottom: 20 }}>
         <h2>Select business</h2>
-        <select value={selectedBusinessId} onChange={(e) => setSelectedBusinessId(e.target.value)}>
+        <select aria-label="Business to import reviews for" value={selectedBusinessId} onChange={(e) => setSelectedBusinessId(e.target.value)}>
           <option value="">Select…</option>
           {businesses.map((b) => (
             <option key={b.id} value={b.id}>
@@ -260,11 +272,13 @@ export default function ImportPage() {
               onChange={(e) => setSettingsTimezone(e.target.value)}
               placeholder="Timezone"
             />
-            <input
-              value={settingsLogoUrl}
-              onChange={(e) => setSettingsLogoUrl(e.target.value)}
-              placeholder="Logo URL"
-            />
+            <label>Logo upload
+              <input key={selectedBusinessId} type="file" accept="image/png,image/jpeg,image/webp" onChange={e => uploadLogo(e.target.files?.[0], setSettingsLogoUrl)} />
+            </label>
+            <small>PNG/JPEG/WebP under 256 KB. Uploads are validated when saved.</small>
+            {settingsLogoUrl.startsWith("data:image/") && <img src={settingsLogoUrl} alt="Selected business logo" width={64} />}
+            {settingsLogoUrl && !settingsLogoUrl.startsWith("data:image/") && <p>Replace the stored logo with an upload, or remove it before saving.</p>}
+            <button type="button" onClick={() => setSettingsLogoUrl("")}>Remove logo</button>
             <label>
               Primary color{" "}
               <input
